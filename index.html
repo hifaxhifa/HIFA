@@ -663,7 +663,8 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
   </div>
   <nav>
     <button data-view="pipeline" class="active">Pipeline</button>
-    <button data-view="room">Rooms</button>
+    <button data-view="incubation">Incubation</button>
+    <button data-view="room">Fruiting</button>
     <button data-view="analytics">Analytics</button>
     <button data-view="costs">Costs</button>
     <button data-view="qr">Labels</button>
@@ -694,7 +695,7 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
       <div class="seg" id="roomModes">
         <button data-mode="view" class="active">View</button>
         <button data-mode="place">Place</button>
-        <button data-mode="harvest">Harvest</button>
+        <button data-mode="harvest" id="roomModeHarvest">Harvest</button>
         <button data-mode="remove">Remove</button>
         <button data-mode="rearrange">Rearrange</button>
       </div>
@@ -711,9 +712,10 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
 <!-- ROOM SETUP -->
 <section class="view" id="view-roomsetup">
   <div class="toolbar">
-    <button class="btn btn-sm" onclick="showView('room')">← Back to room</button>
-    <h2 style="font-size:22px">Room setup</h2>
+    <button class="btn btn-sm" onclick="showView('room');renderRoom()">← Back to room</button>
+    <h2 style="font-size:22px" id="setupTitle">Room setup</h2>
   </div>
+  <div class="note-banner" id="setupIncNote" style="display:none">These are your <b>incubation</b> rooms — racks/shelves where blocks sit while they colonise. Same three levels as the fruiting rooms (room → zone → bays). Placing blocks here doesn't move them out of incubation; placing them later in a <b>fruiting</b> room takes them off these shelves automatically.</div>
   <div class="note-banner">Three levels: add a <b>room</b> for each physical grow space (FC1, FC2, Shiitake Chamber, Oyster Room…), a <b>zone</b> inside it for each wall/section/shelf unit (Wall 1, Wall 2, Centre island…), then <b>bays</b> inside each zone. Each bay's rows become letters (A, B, C…) and slots run left to right. Edit any number any time — existing placements stay put.</div>
   <div id="setupWrap"></div>
   <div id="setupActions" style="margin-top:14px"></div>
@@ -843,7 +845,7 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
       <div><label>From</label><select id="mv_from" onchange="moveFromChanged()"></select></div>
       <div><label>To</label><select id="mv_to"></select></div>
     </div>
-    <div id="mv_placeHint" style="display:none" class="note-banner">Use <b>Room → Place</b> instead for moving blocks into fruiting — it records the shelf location at the same time, and lets you pick the date too. This dialog is for state corrections and other transitions, not for the incubating → fruiting move.</div>
+    <div id="mv_placeHint" style="display:none" class="note-banner">Use <b>Fruiting → Place</b> instead for moving blocks into fruiting — it records the shelf location at the same time, and lets you pick the date too. This dialog is for state corrections and other transitions, not for the incubating → fruiting move.</div>
     <div id="mv_sizeWrap" style="display:none"><label>Block size</label><select id="mv_size" onchange="moveSizeChanged()"></select></div>
     <div class="row2">
       <div><label>How many</label><input type="number" id="mv_count" min="1"></div>
@@ -1185,6 +1187,22 @@ let roomMode="view", placeBatchId=null, pendingPlaceSel=new Set(), placeDate=nul
 let removeSel=new Set();
 let secondFlushGapData={avg:{},counts:{}}; // recomputed once per renderRoom() - see computeSecondFlushGaps
 let roomSetupEditing=false;
+/* Incubation rooms (2026-10-06) - the same Room > Zone > Bay shelf map as
+   the fruiting chamber, just for where blocks physically sit while they
+   colonise. Same tables (mn_rooms.kind tells them apart - anything without
+   a kind is a fruiting room, which is every room that existed before the
+   column did) and the same Rooms view/code, switched by roomKind. Bay
+   numbers stay unique across the whole account, so slot codes never
+   collide between the two. Placing in incubation records location only -
+   no movement, the blocks are still "incubating" - and placing a batch in
+   a fruiting room clears the same number of its incubation placements. */
+let roomKind="fruiting";
+const kindOfRoom = r => r?.kind==="incubation" ? "incubation" : "fruiting";
+const kindOfBay = bay => { const z=zones.find(z=>z.id===bay?.zone_id); return kindOfRoom(rooms.find(r=>r.id===z?.room_id)); };
+const kindOfPlacement = p => kindOfBay(bays.find(b=>b.id===p.bay_id));
+const roomsOfKind = k => rooms.filter(r=>kindOfRoom(r)===k).sort((a,b)=>a.sort_order-b.sort_order);
+const fruitingPlacements = () => placements.filter(p=>kindOfPlacement(p)==="fruiting");
+const activeIncPlacementsOf = batchId => placements.filter(p=>p.batch_id===batchId && !p.removed_date && kindOfPlacement(p)==="incubation");
 
 /* species colour palette — matched to actual mushroom appearance */
 const SPECIES_NAMED = {
@@ -1332,7 +1350,7 @@ function computeSpeciesGrowthDays(){
   const harvestsByKey={};
   for(const h of harvests) (harvestsByKey[h.batch_id+"|"+h.slot_code]=harvestsByKey[h.batch_id+"|"+h.slot_code]||[]).push(h);
   const samples={};
-  for(const p of placements){
+  for(const p of fruitingPlacements()){
     const species=speciesByBatch[p.batch_id]; if(!species) continue;
     const candidates=harvestsByKey[p.batch_id+"|"+p.slot_code]||[]; if(!candidates.length) continue;
     const matching=candidates.map(h=>h.harvest_date).filter(hd=> hd>=p.placed_date && (!p.removed_date || hd<=p.removed_date));
@@ -1393,7 +1411,7 @@ function computeWeeklyYieldForecast(today){
   }
 
   let projectedKg=0; const projectedBySpeciesKg={};
-  for(const p of placements.filter(p=>!p.removed_date)){
+  for(const p of fruitingPlacements().filter(p=>!p.removed_date)){
     const species=speciesByBatch[p.batch_id]; if(!species) continue;
     const hs=(harvestsByKey[p.batch_id+"|"+p.slot_code]||[]).slice().sort((a,b)=>a.harvest_date<b.harvest_date?-1:1);
     let expectedDate, flushNum;
@@ -1764,12 +1782,15 @@ async function clearReadyDate(id){
 function showView(name, push=true){
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   $("view-"+name).classList.add("active");
-  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active", b.dataset.view===name));
+  const navKey = (name==="room"||name==="roomsetup") ? (roomKind==="incubation"?"incubation":"room") : name;
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active", b.dataset.view===navKey));
   if(push){ const url = name==="batch"&&currentBatchId ? "?batch="+(batches.find(b=>b.id===currentBatchId)?.batch_no??"") : location.pathname; history.pushState({},"",url); }
   window.scrollTo(0,0);
 }
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
-  const v=b.dataset.view;
+  let v=b.dataset.view;
+  if(v==="incubation"){ setRoomKind("incubation"); v="room"; }
+  else if(v==="room") setRoomKind("fruiting");
   if(v==="qr") renderLabels();
   if(v==="room") renderRoom();
   if(v==="roomsetup") renderSetup();
@@ -2080,7 +2101,9 @@ function renderBatch(){
       <h3>Blocks — ${b.blocks_total} total</h3>
       ${miniGrid(b,true)}
       <div class="legend">${STATE_ORDER.map(s=>{const v=displayState(s,b);return `<span><span class="sq ${v.cls}"></span>${v.label} (${c[s]})</span>`;}).join("")}</div>
-      ${(()=>{ const on=placements.filter(p=>p.batch_id===b.id&&!p.removed_date); return on.length?`<div style="margin-top:12px;font-size:14px"><b>On shelves (${on.length}):</b> <span class="mono" style="color:var(--muted)">${on.map(p=>p.slot_code).sort().join(", ")}</span></div>`:""; })()}
+      ${(()=>{ const on=placements.filter(p=>p.batch_id===b.id&&!p.removed_date); const inc=on.filter(p=>kindOfPlacement(p)==="incubation"), fr=on.filter(p=>kindOfPlacement(p)==="fruiting");
+        const line=(label,ps,mt)=>ps.length?`<div style="margin-top:${mt}px;font-size:14px"><b>${label} (${ps.length}):</b> <span class="mono" style="color:var(--muted)">${ps.map(p=>p.slot_code).sort().join(", ")}</span></div>`:"";
+        return line("On fruiting shelves",fr,12)+line("On incubation shelves",inc,fr.length?8:12); })()}
       ${(()=>{ const off=placements.filter(p=>p.batch_id===b.id&&p.removed_date).sort((a,x)=>a.removed_date<x.removed_date?1:-1); return off.length?`<div style="margin-top:8px;font-size:14px"><b>Removed from shelves (${off.length}):</b><ul style="list-style:none;margin-top:4px">${off.map(p=>`<li style="color:var(--muted);padding:2px 0">${fmtDate(p.removed_date)} · <span class="mono">${esc(p.slot_code)}</span>${p.removed_note?` — ${esc(p.removed_note)}`:""}</li>`).join("")}</ul></div>`:""; })()}
       <div style="margin-top:14px;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <b>Ready to fruit:</b>
@@ -2518,20 +2541,43 @@ document.querySelectorAll("#roomModes button").forEach(b=>b.onclick=()=>{
   renderRoom();
 });
 
+// Switch the Rooms view between the fruiting chamber and incubation. Any
+// half-done selection belongs to the other section's shelves, so it's
+// dropped, and Harvest mode doesn't exist on incubation shelves.
+function setRoomKind(k){
+  if(k===roomKind) return;
+  roomKind=k;
+  placeBatchId=null; pendingPlaceSel.clear(); removeSel.clear();
+  if(k==="incubation" && roomMode==="harvest") roomMode="view";
+  document.querySelectorAll("#roomModes button").forEach(x=>x.classList.toggle("active",x.dataset.mode===roomMode));
+  const hb=$("roomModeHarvest"); if(hb) hb.style.display = k==="incubation" ? "none" : "";
+}
+
 function roomStats(){
-  const active=placements.filter(p=>!p.removed_date);
-  const totalSlots=bays.reduce((s,b)=>s+b.rows*b.slots_per_row,0);
+  const active=placements.filter(p=>!p.removed_date && kindOfPlacement(p)===roomKind);
+  const totalSlots=bays.filter(b=>kindOfBay(b)===roomKind).reduce((s,b)=>s+b.rows*b.slots_per_row,0);
   const yld=active.reduce((s,p)=>s+placedYield(p),0);
   const ages=active.map(p=>daysBetween(p.placed_date,todayISO()));
   const avgAge=ages.length?Math.round(ages.reduce((a,b)=>a+b,0)/ages.length):0;
   const dueSecondFlush=active.filter(dueForSecondFlush).length;
-  return {occupied:active.length,totalSlots,yld,avgAge,dueSecondFlush};
+  // incubation-only figures: placed blocks whose batch is marked ready to
+  // fruit, and incubating blocks not sitting on any incubation shelf yet
+  const ready=active.filter(p=>batches.find(b=>b.id===p.batch_id)?.ready_date).length;
+  const unplaced=batches.filter(b=>!b.archived).reduce((s,b)=>s+Math.max(0,batchCounts(b).incubating-activeIncPlacementsOf(b.id).length),0);
+  return {occupied:active.length,totalSlots,yld,avgAge,dueSecondFlush,ready,unplaced};
 }
 
 function renderRoom(){
   document.getElementById("view-room").className="view"+(document.getElementById("view-room").classList.contains("active")?" active":"");
   const wrap=$("roomWrap");
-  if(!rooms.length){
+  const inc = roomKind==="incubation";
+  const kindRooms=roomsOfKind(roomKind);
+  if(inc && !kindRooms.length){
+    wrap.className="";
+    wrap.innerHTML=`<div class="empty">No incubation rooms set up yet.<br><br><button class="btn btn-primary" onclick="seedRoom()">Build a starter incubation room automatically</button> &nbsp; or <button class="btn" onclick="openRoomSetup()">set up manually</button><br><br><span style="font-size:13px">The auto-build creates one room ("INC1") with 2 racks (2 bays × 6 shelves × 8 each) - a starting point, everything's editable after in Room setup. Blocks placed here still count as incubating; placing them later in a fruiting room takes them off these shelves.</span></div>`;
+    $("roomStats").innerHTML=""; $("placeBanner").innerHTML=""; updateRemoveBar(); return;
+  }
+  if(!kindRooms.length){
     wrap.innerHTML=`<div class="empty">No rooms set up yet.<br><br><button class="btn btn-primary" onclick="seedRoom()">Build a starter room automatically</button> &nbsp; or <button class="btn" onclick="openRoomSetup()">set up manually</button><br><br><span style="font-size:13px">The auto-build creates one room ("FC1") with 2 walls (3 bays × 9 rows × 6) and a centre island (5 rows × 24) - a starting point, not the only room you can have. Add more rooms any time in Room setup, each with its own walls/bays/shelves, and everything's editable after.</span></div>`;
     $("roomStats").innerHTML=""; $("placeBanner").innerHTML=""; return;
   }
@@ -2541,7 +2587,7 @@ function renderRoom(){
   // place banner
   const pb=$("placeBanner");
   if(roomMode==="place"){
-    const opts=batches.filter(b=>!b.archived).sort((a,b)=>b.batch_no-a.batch_no)
+    const opts=batches.filter(b=>!b.archived && (!inc || batchCounts(b).incubating>0)).sort((a,b)=>b.batch_no-a.batch_no)
       .map(b=>`<option value="${b.id}" ${b.id===placeBatchId?"selected":""}>#${b.batch_no} ${esc(b.name)} (${esc(b.species)})</option>`).join("");
     pb.innerHTML=`<div class="note-banner" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <b>Placing:</b>
@@ -2558,7 +2604,7 @@ function renderRoom(){
   } else if(roomMode==="harvest"){
     pb.innerHTML=`<div class="note-banner">Tap a filled slot to log a harvest from it.</div>`;
   } else if(roomMode==="remove"){
-    pb.innerHTML=`<div class="note-banner">Tap blocks to select — or tap a <b>row letter</b> for the whole shelf, or <b>Select all</b> on a bay. Then hit Remove. Harvests stay in batch history.</div>`;
+    pb.innerHTML=`<div class="note-banner">Tap blocks to select — or tap a <b>row letter</b> for the whole shelf, or <b>Select all</b> on a bay. Then hit Remove. ${inc?"You'll be asked whether they're still incubating or were lost (contaminated, didn't colonise, culled).":"Harvests stay in batch history."}</div>`;
   } else if(roomMode==="rearrange"){
     pb.innerHTML=`<div class="note-banner">Drag a block onto an empty slot to move it there, or onto another block to swap the two. Harvest history travels with the block — nothing else changes.</div>`;
   } else pb.innerHTML="";
@@ -2594,20 +2640,26 @@ function renderRoom(){
   }
   // stats
   const s=roomStats();
-  $("roomStats").innerHTML=`
+  if(inc) $("roomStats").innerHTML=`
+    <div class="stat"><div class="n">${s.occupied}/${s.totalSlots}</div><div class="l">Slots filled</div></div>
+    <div class="stat"><div class="n">${s.totalSlots?Math.round(s.occupied/s.totalSlots*100):0}%</div><div class="l">Occupancy</div></div>
+    <div class="stat"><div class="n">${s.avgAge}</div><div class="l">Avg days on shelf</div></div>
+    <div class="stat"><div class="n">${s.ready}</div><div class="l">Ready to fruit</div></div>
+    <div class="stat"><div class="n">${s.unplaced}</div><div class="l">Incubating, not on a shelf</div></div>`;
+  else $("roomStats").innerHTML=`
     <div class="stat"><div class="n">${s.occupied}/${s.totalSlots}</div><div class="l">Slots filled</div></div>
     <div class="stat"><div class="n">${s.totalSlots?Math.round(s.occupied/s.totalSlots*100):0}%</div><div class="l">Occupancy</div></div>
     <div class="stat"><div class="n">${fmtWeight(s.yld)}</div><div class="l">Yield on shelves</div></div>
     <div class="stat"><div class="n">${s.avgAge}</div><div class="l">Avg days on shelf</div></div>
     <div class="stat"><div class="n"${s.dueSecondFlush?` style="color:var(--st-failed)"`:""}>${s.dueSecondFlush}</div><div class="l">Due for 2nd flush</div></div>`;
   // species legend (only species currently placed)
-  const placedSpecies=[...new Set(placements.filter(p=>!p.removed_date).map(p=>batches.find(b=>b.id===p.batch_id)?.species).filter(Boolean))];
+  const placedSpecies=[...new Set(placements.filter(p=>!p.removed_date && kindOfPlacement(p)===roomKind).map(p=>batches.find(b=>b.id===p.batch_id)?.species).filter(Boolean))];
   const legend = placedSpecies.length ? `<div class="room-legend">${placedSpecies.map(sp=>`<span><i style="background:${speciesColor(sp)}"></i>${esc(sp)}</span>`).join("")}</div>` : "";
   // rooms (each with its own zones/walls/bays nested inside - 2026-09-04,
   // see roomHTML/zonesOf. A zone with no room_id yet - shouldn't happen
   // once the migration's run, mn_zones.room_id is NOT NULL from then on -
   // just wouldn't render anywhere rather than crashing.)
-  wrap.innerHTML = legend + rooms.slice().sort((a,b)=>a.sort_order-b.sort_order).map(roomHTML).join("");
+  wrap.innerHTML = legend + kindRooms.map(roomHTML).join("");
   updateRemoveBar();
 }
 
@@ -2650,12 +2702,13 @@ function bayHTML(bay){
       const days=daysBetween(p.placed_date,todayISO());
       const y=placedYield(p);
       const hasHarv=y>0;
-      const dueFlush=dueForSecondFlush(p);
+      const dueFlush=roomKind==="fruiting" && dueForSecondFlush(p);
+      const readyDot=roomKind==="incubation" && !!b?.ready_date;
       const sel=removeSel.has(code)?" sel":"";
       const dragAttrs = ra ? ` draggable="true" ondragstart="rearrangeDragStart(event,'${code}')" ondragend="rearrangeDragEnd(event)" ondragover="rearrangeDragOver(event)" ondragenter="rearrangeDragEnter(event)" ondragleave="rearrangeDragLeave(event)" ondrop="rearrangeDrop(event,'${code}')"` : "";
-      const titleSuffix = dueFlush ? " · likely ready for a 2nd flush check" : "";
+      const titleSuffix = dueFlush ? " · likely ready for a 2nd flush check" : readyDot ? " · batch ready to fruit" : "";
       return `<div class="slot full${sel}" id="sl_${code}" style="background:${col};color:${ink}" title="${code} · ${esc(b?.name||"")}${titleSuffix}" onclick="slotTap('${bay.id}','${letter}',${n})"${dragAttrs}>
-        ${dueFlush?`<span class="flush-due-dot" title="Likely ready for a 2nd flush check"></span>`:hasHarv?`<span class="harv-dot"></span>`:""}
+        ${dueFlush?`<span class="flush-due-dot" title="Likely ready for a 2nd flush check"></span>`:readyDot?`<span class="harv-dot" title="Batch ready to fruit"></span>`:hasHarv?`<span class="harv-dot"></span>`:""}
         <span class="s-no">#${b?.batch_no??"?"}</span>
         <span class="s-sp">${esc(b?.species||"")}</span>
         <span class="s-d">${days}d</span>
@@ -2711,8 +2764,9 @@ function slotTap(bayId,letter,n){
     if(!p){ return; }
     toggleSel(code);
   } else {
-    // view mode → show this specific block's own harvest detail
-    if(p) openSlotDetail(bay.id,letter,n);
+    // view mode → show this specific block's own harvest detail (incubation
+    // blocks have no harvests yet, so just open their batch)
+    if(p){ if(roomKind==="incubation") openBatch(p.batch_id); else openSlotDetail(bay.id,letter,n); }
   }
 }
 
@@ -2764,7 +2818,13 @@ async function confirmPlace(){
   const b=batches.find(x=>x.id===placeBatchId);
   const counts=batchCounts(b);
   const n=pendingPlaceSel.size;
-  if(n>counts.incubating){
+  if(roomKind==="incubation"){
+    const free=counts.incubating-activeIncPlacementsOf(b.id).length;
+    if(n>free){
+      alert(`Only ${Math.max(0,free)} of this batch's incubating blocks ${free===1?"isn't":"aren't"} on an incubation shelf yet. You selected ${n} slots.`);
+      return;
+    }
+  } else if(n>counts.incubating){
     alert(`Only ${counts.incubating} block${counts.incubating===1?"":"s"} still incubating in this batch. You selected ${n} slots.`);
     return;
   }
@@ -2783,8 +2843,14 @@ async function confirmPlace(){
   }
   // auto-create movement: incubating → fruiting
   // only move as many as are actually still incubating (some may have been manually moved already)
+  // Incubation shelves record location only - the blocks are still incubating, so no movement.
   const alreadyIncubating = batchCounts(b).incubating;
-  const toMove = Math.min(n, alreadyIncubating);
+  const toMove = roomKind==="incubation" ? 0 : Math.min(n, alreadyIncubating);
+  // Blocks going into fruiting physically leave the incubation shelves -
+  // take the same number of this batch's incubation placements off
+  // (longest-incubating first, the ones most likely just carried over).
+  const incToClear = roomKind==="incubation" ? [] : activeIncPlacementsOf(b.id)
+    .sort((a,x)=>a.placed_date<x.placed_date?-1:a.placed_date>x.placed_date?1:0).slice(0,n).map(p=>p.id);
   let movRows=[];
   if(toMove > 0){
     const sizes=sizesInState(b,"incubating");
@@ -2810,6 +2876,12 @@ async function confirmPlace(){
         if(ids.length) await db.from("mn_placements").delete().in("id",ids);
         throw e2;
       }
+    }
+    if(incToClear.length){
+      // not worth rolling the placement back over - worst case the blocks
+      // still show on the incubation map and can be removed there by hand
+      const {error:e3}=await db.from("mn_placements").update({removed_date:placeDate||todayISO(), removed_note:"Moved to fruiting"}).in("id",incToClear);
+      if(e3){ console.error(e3); alert("Placed in fruiting, but couldn't take them off the incubation shelves - remove them there by hand.\n\n"+e3.message); }
     }
     pendingPlaceSel.clear();
     await loadAll();
@@ -2872,6 +2944,30 @@ function openRemoveModal(){
   const toRemove=[...removeSel].map(c=>placementAt(c)).filter(Boolean);
   const byBatch={};
   for(const p of toRemove){ byBatch[p.batch_id]=(byBatch[p.batch_id]||0)+1; }
+  if(roomKind==="incubation"){
+    // Off an incubation shelf: either just moved/not tracked here anymore
+    // (still incubating, no movement) or lost before it ever fruited.
+    $("rm_sub").textContent=`${removeSel.size} block${removeSel.size===1?"":"s"} selected. Pick what happened for each batch - "Still incubating" just takes them off this map.`;
+    $("rm_outcomes").innerHTML=`
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+        <label>What happened?</label>
+        ${Object.keys(byBatch).map(id=>{
+          const b=batches.find(x=>x.id===id);
+          return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <span style="flex:1;font-size:13px">${esc(b?.name||"?")} (${byBatch[id]})</span>
+            <select data-outcome-batch="${id}" style="flex:0 0 160px">
+              <option value="keep">Still incubating</option>
+              <option value="contaminated">Contaminated</option>
+              <option value="failed">Didn't colonise</option>
+              <option value="culled">Culled / backlog</option>
+            </select>
+          </div>`;
+        }).join("")}
+      </div>`;
+    openModal("removeModal");
+    setTimeout(()=>$("rm_note").focus(),100);
+    return;
+  }
   const needsOutcome=Object.keys(byBatch).filter(id=>!harvests.some(h=>h.batch_id===id));
   $("rm_outcomes").innerHTML = needsOutcome.length ? `
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
@@ -2938,20 +3034,29 @@ async function confirmRemove(){
   const byBatch={};
   for(const p of toRemove){ byBatch[p.batch_id]=(byBatch[p.batch_id]||0)+1; }
   const movRows=[];
+  const fromState = roomKind==="incubation" ? "incubating" : "fruiting";
   const pushStateMove=(b,toState,count,noteText)=>{
-    const sizes=sizesInState(b,"fruiting");
+    const sizes=sizesInState(b,fromState);
     if(sizes.length<=1){
       const kg=sizes.length===1?sizes[0].kg:null;
-      movRows.push({batch_id:b.id, move_date:todayISO(), from_state:"fruiting", to_state:toState, count, kg, note:noteText});
+      movRows.push({batch_id:b.id, move_date:todayISO(), from_state:fromState, to_state:toState, count, kg, note:noteText});
     } else {
       let rem=count;
-      for(const s of sizes){ if(rem<=0) break; const take=Math.min(rem,s.count); movRows.push({batch_id:b.id, move_date:todayISO(), from_state:"fruiting", to_state:toState, count:take, kg:s.kg, note:noteText}); rem-=take; }
+      for(const s of sizes){ if(rem<=0) break; const take=Math.min(rem,s.count); movRows.push({batch_id:b.id, move_date:todayISO(), from_state:fromState, to_state:toState, count:take, kg:s.kg, note:noteText}); rem-=take; }
     }
   };
   const isProblemReason=note && PROBLEM_REASON_KEYWORDS.some(k=>note.toLowerCase().includes(k));
   for(const [batchId,removedCount] of Object.entries(byBatch)){
     const b=batches.find(x=>x.id===batchId);
     if(!b) continue;
+    if(roomKind==="incubation"){
+      const outcomeState=outcomeByBatch[batchId];
+      if(!outcomeState || outcomeState==="keep") continue;
+      const toMove=Math.min(removedCount,batchCounts(b).incubating);
+      if(toMove<=0) continue;
+      pushStateMove(b,outcomeState,toMove,note ? `${STATES[outcomeState].label} in incubation (${note})` : `${STATES[outcomeState].label} in incubation`);
+      continue;
+    }
     if(outcomeByBatch[batchId]){
       const toMove=Math.min(removedCount,batchCounts(b).fruiting);
       if(toMove<=0) continue;
@@ -3159,12 +3264,15 @@ function finishRoomEdit(){ roomSetupEditing=false; renderSetup(); }
 function renderSetup(){
   const wrap=$("setupWrap");
   const actions=$("setupActions");
-  if(!rooms.length){
-    wrap.innerHTML=`<div class="empty">No rooms yet. Add one below, or <button class="btn btn-sm" onclick="seedRoom()">auto-build a starter room</button>.</div>`;
+  const inc = roomKind==="incubation";
+  $("setupTitle").textContent = inc ? "Incubation room setup" : "Fruiting room setup";
+  $("setupIncNote").style.display = inc ? "" : "none";
+  if(!roomsOfKind(roomKind).length){
+    wrap.innerHTML=`<div class="empty">No ${inc?"incubation ":""}rooms yet. Add one below, or <button class="btn btn-sm" onclick="seedRoom()">auto-build a starter room</button>.</div>`;
     if(actions) actions.innerHTML=`<button class="btn btn-primary" onclick="addRoom()">＋ Add room</button>`;
     return;
   }
-  const sortedRooms=rooms.slice().sort((a,b)=>a.sort_order-b.sort_order);
+  const sortedRooms=roomsOfKind(roomKind);
   if(!roomSetupEditing){
     // read-only summary — just browsing this view never creates anything
     wrap.innerHTML = sortedRooms.map(room=>{
@@ -3221,9 +3329,12 @@ function renderSetup(){
   if(actions) actions.innerHTML=`<button class="btn btn-primary" onclick="addRoom()">＋ Add room</button> <button class="btn btn-sm" onclick="finishRoomEdit()">Done editing</button>`;
 }
 async function addRoom(){
-  const n=rooms.length;
+  const n=roomsOfKind(roomKind).length;
   roomSetupEditing=true;
-  await write(db.from("mn_rooms").insert({name:"New room",sort_order:n}),"Couldn't add room");
+  // only send kind for incubation, so adding a fruiting room keeps working
+  // on a database that hasn't had the mn_rooms.kind column added yet
+  const row = roomKind==="incubation" ? {name:"New incubation room",sort_order:n,kind:"incubation"} : {name:"New room",sort_order:n};
+  await write(db.from("mn_rooms").insert(row),"Couldn't add room"+(roomKind==="incubation"?" - if this mentions a \"kind\" column, re-run schema.sql in the Supabase SQL Editor first.":""));
   renderSetup();
 }
 async function saveRoom(id){
@@ -3270,12 +3381,33 @@ async function deleteBay(id){
   await write(db.from("mn_bays").delete().eq("id",id),"Couldn't delete bay");
   renderSetup();
 }
-async function seedRoom(){
-  if(rooms.length && !confirm("This adds a new starter room (\"FC1\") alongside what's already there. Continue?")) return;
+async function seedIncubationRoom(){
+  const existing=roomsOfKind("incubation");
+  if(existing.length && !confirm("This adds a new starter incubation room alongside what's already there. Continue?")) return;
   setSync("","Building room…");
   try{
-    const roomName = rooms.length ? `FC${rooms.length+1}` : "FC1";
-    const {data:room} = await db.from("mn_rooms").insert({name:roomName,sort_order:rooms.length}).select().single();
+    const {data:room,error:er} = await db.from("mn_rooms").insert({name:`INC${existing.length+1}`,sort_order:existing.length,kind:"incubation"}).select().single();
+    if(er) throw er;
+    const mk = async (name,order)=>{ const {data,error}=await db.from("mn_zones").insert({room_id:room.id,name,sort_order:order}).select().single(); if(error) throw error; return data; };
+    const r1=await mk("Rack 1",0), r2=await mk("Rack 2",1);
+    // bay_no is unique across the whole account (see seedRoom below)
+    const baseBay=bays.reduce((m,b)=>Math.max(m,b.bay_no),0);
+    const baysToAdd=[];
+    [r1,r2].forEach((z,zi)=>{ for(let i=0;i<2;i++) baysToAdd.push({zone_id:z.id,bay_no:baseBay+zi*2+i+1,rows:6,slots_per_row:8,sort_order:i}); });
+    const {error:eb}=await db.from("mn_bays").insert(baysToAdd);
+    if(eb) throw eb;
+    await loadAll(); renderSetup(); renderRoom();
+    setSync("ok","Synced");
+  }catch(e){ console.error(e); setSync("bad","Build failed"); alert("Couldn't build the incubation room. Make sure you've re-run schema.sql (it adds the mn_rooms.kind column) first.\n\n"+e.message); await loadAll(); }
+}
+async function seedRoom(){
+  if(roomKind==="incubation") return seedIncubationRoom();
+  if(roomsOfKind("fruiting").length && !confirm("This adds a new starter room (\"FC1\") alongside what's already there. Continue?")) return;
+  setSync("","Building room…");
+  try{
+    const fr=roomsOfKind("fruiting").length;
+    const roomName = fr ? `FC${fr+1}` : "FC1";
+    const {data:room} = await db.from("mn_rooms").insert({name:roomName,sort_order:fr}).select().single();
     const mk = async (name,kg,order)=>{ const {data}=await db.from("mn_zones").insert({room_id:room.id,name,block_kg:kg,sort_order:order}).select().single(); return data; };
     const w1=await mk("Wall 1",4.5,0), w2=await mk("Wall 2",4.5,1), c=await mk("Centre island",2.5,2);
     // bay_no is unique across the WHOLE account, not just this room (see
