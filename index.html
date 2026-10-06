@@ -3949,7 +3949,6 @@ function labelHTML(b, unit){
         ${labelCfg.logo?`<img class="llogo" src="${labelCfg.logo}" alt="" style="max-height:${logoH}px;max-width:${Math.min(90,Math.round(60*labelCfg.logoScale/100))}%">`:""}
         <div class="lt" style="font-size:${big?11:9}px">
           <div class="lid" style="font-size:${big?18:13}px"><span class="lcode">${esc(unit?unit.unit_code:batchIdOf(b))}</span>${b.strain_code?`<span class="lst">${esc(b.strain_code)}</span>`:""}</div>
-          <div class="nm" style="font-size:${big?13:10}px">${esc(b.name)}</div>
           ${lines.map(l=>`<div class="ln">${l}</div>`).join("")}
         </div>
       </div>
