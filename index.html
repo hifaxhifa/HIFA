@@ -364,6 +364,15 @@ th .info-dot{margin-left:5px}
 .card .stats{display:flex;gap:14px;font-size:13px;margin-top:8px;flex-wrap:wrap}
 .card .stats b{font-weight:600}
 .bno{color:var(--muted);font-size:13px}
+.strain-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.5px;padding:1px 6px;border-radius:5px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);vertical-align:middle}
+.id-chip{font-size:13px;font-weight:700}
+.form-locked input:disabled,.form-locked select:disabled,.form-locked textarea:disabled{opacity:.75;cursor:not-allowed}
+.unit-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.unit-list span{font-size:12px;padding:3px 7px;border-radius:6px;border:1px solid var(--line);background:var(--surface-2)}
+.unit-list span.on{border-color:var(--st-fruiting)}
+.unit-list span.inc{border-color:var(--st-incubating)}
+.unit-list span.void{text-decoration:line-through;opacity:.5}
+.unit-list span.hl{outline:2px solid var(--accent);outline-offset:1px}
 
 /* block grid - kept exactly as a concept (Adam's explicit ask), only the
    corner radius tightened slightly for a sharper "industrial tile" read
@@ -542,9 +551,9 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
    shipped. */
 .slot.empty{color:var(--slot-empty-ink);font-family:"IBM Plex Mono",monospace;background-image:repeating-linear-gradient(-45deg,var(--slot-empty-ink) 0,var(--slot-empty-ink) 1px,transparent 1px,transparent 6px)}
 .slot.full{border-style:solid;border-color:transparent}
-.slot .s-no{font-weight:700;font-size:11px}
+.slot .s-no{font-weight:700;font-size:9.5px;letter-spacing:-.4px;white-space:nowrap;max-width:100%;overflow:hidden}
 .slot .s-sp{font-size:8px;opacity:.95;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.slot .s-d{font-size:8px;opacity:.9}
+.slot .s-d{font-size:8px;opacity:.9;white-space:nowrap;max-width:100%;overflow:hidden}
 .slot .s-y{font-size:8px;font-weight:700}
 .slot .harv-dot{position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px rgba(0,0,0,.15)}
 .slot .flush-due-dot{position:absolute;top:2px;right:2px;width:9px;height:9px;border-radius:50%;background:var(--st-failed);box-shadow:0 0 0 1.5px rgba(0,0,0,.2);animation:flush-due-pulse 2s ease-in-out infinite}
@@ -606,6 +615,10 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
 .label .lt{min-width:0;display:flex;flex-direction:column;gap:1px}
 .label .nm{font-family:"Montserrat",sans-serif;font-weight:700;line-height:1.1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .label .ln{color:#333;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.label .lid{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:800;color:#000;line-height:1.1;display:flex;flex-wrap:wrap;align-items:center;gap:2px 5px}
+.label .lid .lcode{white-space:nowrap}
+.label .lnote{margin-top:4px;min-height:1.5em;border-bottom:1px solid #000;color:#000;line-height:1.25;padding-top:.25em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.label .lid .lst{display:inline-block;padding:0 4px;border:1.5px solid #000;border-radius:3px;font-size:.85em;white-space:nowrap}
 .empty{border:1.5px dashed var(--line);border-radius:var(--radius);padding:40px 20px;text-align:center;color:var(--muted)}
 .note-banner{background:#FBF6E8;border:1px solid #EADFBE;border-radius:8px;padding:10px 14px;font-size:13px;color:#6E5E2E;margin-bottom:14px}
 
@@ -726,9 +739,10 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
   <div class="formwrap">
     <h2 id="formTitle" style="font-size:24px;margin-bottom:6px">New batch</h2>
     <input type="hidden" id="f_id">
+    <div id="f_lockNote"></div>
     <div class="row2">
-      <div><label>Batch number</label><input type="number" id="f_no" min="1"></div>
-      <div><label>Inoculation date</label><input type="date" id="f_date"></div>
+      <div><label>Batch ID</label><div id="f_code" class="mono" style="padding:10px 0;font-size:16px;font-weight:700"></div></div>
+      <div><label>Inoculation date</label><input type="date" id="f_date" oninput="updateCodePreview()"></div>
     </div>
     <label>Batch name *</label><input id="f_name" placeholder="e.g. Golden Enoki">
     <div class="row2">
@@ -742,8 +756,8 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
     </div>
     <datalist id="subList"></datalist>
     <div class="row2">
+      <div><label>Strain ID <a href="#" style="font-weight:400;font-size:12px" onclick="event.preventDefault();openStrains()">manage strains</a></label><select id="f_strain" onchange="strainPicked()"></select></div>
       <div><label>Spawn code</label><input id="f_spawn" placeholder="e.g. FV6924SO31"></div>
-      <div></div>
     </div>
     <label>Blocks *</label>
     <div id="staticInfo_blockLines"></div>
@@ -752,7 +766,7 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
     <div id="blockTotal" style="margin-top:8px;font-size:14px;color:var(--muted)"></div>
     <label>Notes</label><textarea id="f_notes" rows="3" placeholder="Tech, lot details, anything…"></textarea>
     <div style="display:flex;gap:10px;margin-top:20px">
-      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="saveBatch()">Save batch</button>
+      <button class="btn btn-primary" id="f_save" style="flex:1;justify-content:center" onclick="saveBatch()">Save batch</button>
       <button class="btn" onclick="cancelForm()">Cancel</button>
     </div>
   </div>
@@ -785,7 +799,7 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
   </div>
   <div class="panel no-print">
     <div class="lbl-controls">
-      <div>
+      <div style="display:none">
         <label>Logo</label>
         <div style="display:flex;align-items:center;gap:8px;min-height:40px" id="lb_logoprev"></div>
         <button class="btn btn-sm" style="margin-top:6px" onclick="$('lb_logofile').click()">Upload logo</button>
@@ -798,32 +812,50 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
           <option value="m">Medium (80 × 40 mm)</option>
           <option value="l">Large (100 × 50 mm)</option>
         </select></div>
-      <div><label>Logo size — <span id="lb_logoval">100%</span></label>
+      <div style="display:none"><label>Logo size — <span id="lb_logoval">100%</span></label>
         <input type="range" id="lb_logosize" min="40" max="200" step="10" value="100" oninput="$('lb_logoval').textContent=this.value+'%'" onchange="lblChanged()" style="padding:0"></div>
     </div>
-    <div class="lbl-checks">
-      <label><input type="checkbox" id="lb_f_species" onchange="lblChanged()"> Species</label>
-      <label><input type="checkbox" id="lb_f_scientific" onchange="lblChanged()"> Scientific name</label>
-      <label><input type="checkbox" id="lb_f_inoc" onchange="lblChanged()"> Inoc date</label>
-      <label><input type="checkbox" id="lb_f_spawn" onchange="lblChanged()"> Spawn code</label>
-      <label><input type="checkbox" id="lb_f_substrate" onchange="lblChanged()"> Substrate</label>
-    </div>
+    <div style="margin-top:12px;font-size:13px;color:var(--muted)">Every label shows the Batch/Block ID with the strain code beside it, the spawn code, a space for a note, and the QR.</div>
   </div>
 
   <div class="panel no-print">
-    <h3 style="font-size:15px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:10px">Print a batch's label</h3>
+    <h3 style="font-size:15px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:10px">Print labels</h3>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
       <div style="flex:1;min-width:220px"><label>Batch</label>
-        <select id="lb_batch" onchange="renderLabels()"></select></div>
-      <div style="width:120px"><label>How many</label>
+        <select id="lb_batch" onchange="$('lb_from').value='';$('lb_to').value='';renderLabels()"></select></div>
+      <div><label>Labels</label>
+        <select id="lb_mode" onchange="renderLabels()" style="width:auto">
+          <option value="units">One per block (Block ID)</option>
+          <option value="batch">Batch label (copies)</option>
+        </select></div>
+      <div style="width:120px" id="lb_copiesWrap"><label>How many</label>
         <input type="number" id="lb_copies" min="1" value="1" onchange="renderLabels()"></div>
+      <div id="lb_rangeWrap" style="display:flex;gap:6px;align-items:flex-end">
+        <div style="width:80px"><label>Blocks from</label><input type="number" id="lb_from" min="1" onchange="renderLabels()"></div>
+        <div style="width:80px"><label>to</label><input type="number" id="lb_to" min="1" onchange="renderLabels()"></div>
+      </div>
       <button class="btn btn-primary" onclick="printLabels()">🖨 Print</button>
     </div>
+    <div style="margin-top:10px;max-width:420px"><label>Note (optional)</label>
+      <input id="lb_note" maxlength="40" placeholder="Leave empty for a blank line to write on" oninput="renderLabels()"></div>
     <div style="margin-top:8px;font-size:13px;color:var(--muted)">The printout puts one label per page, sized to your label stock — so the MUNBYN feeds them one at a time. Set printer margins to None and scale 100%.</div>
   </div>
 
   <div class="no-print" style="font-size:13px;color:var(--muted);margin:0 0 8px 2px">Preview</div>
   <div class="label-sheet" id="labelSheet"></div>
+</section>
+
+<!-- STRAINS (ID Cepa) -->
+<section class="view" id="view-strains">
+  <div class="toolbar">
+    <button class="btn btn-sm" onclick="closeStrains()">← Back</button>
+    <h2 style="font-size:22px">Strains (ID Cepa)</h2>
+    <div class="spacer"></div>
+    <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;margin:0"><input type="checkbox" id="st_showInactive" onchange="renderStrains()" style="width:auto"> Show inactive</label>
+    <button class="btn btn-primary btn-sm" onclick="addStrainRow()">＋ Add strain</button>
+  </div>
+  <div class="note-banner">Each batch can be given a strain; its code is printed next to the Batch ID on every label and screen (e.g. <span class="mono">26279-02 <span class="strain-tag">BOCF</span></span>) but isn't part of the ID. This list lives in the Supabase table <b class="mono">mn_strains</b> — edit it here or there. Renaming a code updates every batch using it; a strain in use can't be deleted, untick <b>Active</b> instead so it stops appearing for new batches.</div>
+  <div style="overflow-x:auto"><div id="strainsWrap"></div></div>
 </section>
 
 <!-- ARCHIVE -->
@@ -915,13 +947,17 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
 <!-- SCAN MODAL (2026-09-01, Adam's ask for today's block audit) -->
 <div class="modal-bg" id="scanModal">
   <div class="modal" style="text-align:center">
-    <h3>Scan a block</h3>
+    <h3 id="scan_title">Scan a block</h3>
     <div class="sub" id="scan_status" style="margin-bottom:14px">Requesting camera…</div>
     <div style="position:relative;border-radius:var(--radius);overflow:hidden;background:#000;aspect-ratio:1">
       <video id="scan_video" playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
     </div>
     <canvas id="scan_canvas" style="display:none"></canvas>
-    <div class="actions" style="margin-top:14px"><button class="btn" onclick="closeScanModal()">Cancel</button></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <input id="scan_manual" class="mono" inputmode="numeric" autocomplete="off" placeholder="…or type the ID, e.g. 26279-02-17" onkeydown="if(event.key==='Enter')submitScanManual()" style="flex:1">
+      <button class="btn" onclick="submitScanManual()">Go</button>
+    </div>
+    <div class="actions" style="margin-top:14px"><button class="btn" onclick="closeScanModal()">Close</button></div>
   </div>
 </div>
 
@@ -997,6 +1033,10 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
       <button class="btn btn-sm" onclick="useLabelLogo()">Use my label logo</button>
     </div>
     <input type="file" id="pf_logofile" accept="image/*" style="display:none" onchange="uploadHdrLogo(event)">
+
+    <hr style="border:none;border-top:1px solid var(--line);margin:20px 0 4px">
+    <div class="sub" style="margin-bottom:8px">Shared lists (everyone sees these)</div>
+    <button class="btn btn-sm" onclick="closeModal('prefsModal');openStrains()">🧬 Strains (ID Cepa)…</button>
 
     <div class="actions">
       <button class="btn btn-primary" onclick="saveFarmBranding()">Save branding</button>
@@ -1180,10 +1220,49 @@ const STATES = {
 const STATE_ORDER = ["incubating","fruiting","complete","packed","contaminated","failed","culled"];
 
 let batches=[], movements=[], harvests=[], costs=[], batchNotes=[];
-let rooms=[], zones=[], bays=[], placements=[];
+let rooms=[], zones=[], bays=[], placements=[], strains=[];
+/* Batch IDs & Block IDs (2026-10). The database assigns them (see the
+   triggers at the end of schema.sql) - never this page - so two people
+   creating batches at once can't collide:
+     Batch ID  AADDD-LL     26279-02     year, day of year sown, batch of that day
+     Block ID  AADDD-LL-BB  26279-02-17  + block number within the batch
+   A batch's strain code (mn_strains, "ID Cepa") is always shown next to its
+   Batch ID but is not part of it. batch_no is still kept, hidden, so QR
+   labels printed before this keep working. Batches loaded from a database
+   that hasn't had schema.sql re-run yet have no batch_code and fall back
+   to showing #batch_no. */
+const fmtSeq = n => n<100 ? String(n).padStart(2,"0") : String(n);
+const batchIdOf = b => b ? (b.batch_code || "#"+b.batch_no) : "?";
+const batchTagText = b => batchIdOf(b)+(b?.strain_code?" · "+b.strain_code:"");
+const batchTagHTML = b => `<span class="bno mono">${esc(batchIdOf(b))}</span>${b?.strain_code?` <span class="strain-tag mono">${esc(b.strain_code)}</span>`:""}`;
+const strainOf = b => b?.strain_code ? strains.find(s=>s.code===b.strain_code) : null;
+const unitURL = code => location.origin+location.pathname+"?u="+encodeURIComponent(code);
+// Accepts a Batch/Block ID typed or scanned any reasonable way: with or
+// without dashes ("26279-02-17", "262790217", " 26279 02 17 "), or a full
+// label URL. Returns {batchCode, unitCode|null} or null if it isn't one.
+function parseIdInput(text){
+  let t=String(text||"").trim();
+  try{ const u=new URL(t); t=u.searchParams.get("u")||u.searchParams.get("batch")||""; }catch(e){}
+  t=t.replace(/[\s.]/g,"");
+  let m=t.match(/^(\d{5})-?(\d{2,3})-(\d{2,3})$/) || (/^\d{9}$/.test(t) && [t,t.slice(0,5),t.slice(5,7),t.slice(7)]);
+  if(m) return {batchCode:`${m[1]}-${m[2]}`, unitCode:`${m[1]}-${m[2]}-${m[3]}`};
+  m=t.match(/^(\d{5})-?(\d{2,3})$/);
+  if(m) return {batchCode:`${m[1]}-${m[2]}`, unitCode:null};
+  return null;
+}
+// Block rows (mn_units) are fetched per batch on demand rather than all at
+// once - there's one per physical block, so they outgrow a single request.
+const unitsCache={};
+async function fetchUnits(batchId, force){
+  if(!force && unitsCache[batchId]) return unitsCache[batchId];
+  const {data,error}=await db.from("mn_units").select("*").eq("batch_id",batchId).order("unit_no");
+  if(error){ console.warn("mn_units not readable yet - re-run schema.sql.",error); return null; }
+  return (unitsCache[batchId]=data);
+}
 let yieldDefaults=[]; // per-species yield & harvest-timing defaults (mn_yield_defaults), used for harvest ETAs
-let currentBatchId=null, editingId=null;
+let currentBatchId=null, editingId=null, highlightUnitCode=null;
 let roomMode="view", placeBatchId=null, pendingPlaceSel=new Set(), placeDate=null;
+let placeByScan=false, scanPlaceSlot=null; // Place → "Scan blocks": tap a slot, scan the block that goes there
 let removeSel=new Set();
 let secondFlushGapData={avg:{},counts:{}}; // recomputed once per renderRoom() - see computeSecondFlushGaps
 let roomSetupEditing=false;
@@ -1723,13 +1802,13 @@ function resolvedPackedCost(b){
 }
 
 /* ================= DATA ================= */
-function cache(){ try{ localStorage.setItem("mn_cache", JSON.stringify({batches,movements,harvests,costs,rooms,zones,bays,placements,yieldDefaults,batchNotes})); }catch(e){} }
-function loadCache(){ try{ const d=JSON.parse(localStorage.getItem("mn_cache")); if(d){batches=d.batches||[];movements=d.movements||[];harvests=d.harvests||[];costs=d.costs||[];rooms=d.rooms||[];zones=d.zones||[];bays=d.bays||[];placements=d.placements||[];yieldDefaults=d.yieldDefaults||[];batchNotes=d.batchNotes||[];} }catch(e){} }
+function cache(){ try{ localStorage.setItem("mn_cache", JSON.stringify({batches,movements,harvests,costs,rooms,zones,bays,placements,yieldDefaults,batchNotes,strains})); }catch(e){} }
+function loadCache(){ try{ const d=JSON.parse(localStorage.getItem("mn_cache")); if(d){batches=d.batches||[];movements=d.movements||[];harvests=d.harvests||[];costs=d.costs||[];rooms=d.rooms||[];zones=d.zones||[];bays=d.bays||[];placements=d.placements||[];yieldDefaults=d.yieldDefaults||[];batchNotes=d.batchNotes||[];strains=d.strains||[];} }catch(e){} }
 
 async function loadAll(){
   setSync("","Syncing…");
   try{
-    const [b,m,h,c,rm,z,ba,pl,yd,bn] = await Promise.all([
+    const [b,m,h,c,rm,z,ba,pl,yd,bn,st] = await Promise.all([
       db.from("mn_batches").select("*").order("batch_no",{ascending:false}),
       db.from("mn_movements").select("*"),
       db.from("mn_harvests").select("*"),
@@ -1739,7 +1818,8 @@ async function loadAll(){
       db.from("mn_bays").select("*").order("sort_order"),
       db.from("mn_placements").select("*"),
       db.from("mn_yield_defaults").select("*"),
-      db.from("mn_batch_notes").select("*")
+      db.from("mn_batch_notes").select("*"),
+      db.from("mn_strains").select("*").order("code")
     ]);
     if(b.error||m.error||h.error||c.error) throw (b.error||m.error||h.error||c.error);
     batches=b.data; movements=m.data; harvests=h.data; costs=c.data;
@@ -1756,6 +1836,9 @@ async function loadAll(){
     if(yd.error) console.warn("Yield defaults table not readable yet — harvest ETA badges will be hidden.",yd.error);
     batchNotes = bn.error ? [] : bn.data;
     if(bn.error) console.warn("mn_batch_notes table not found yet — growth/observation notes will be hidden.",bn.error);
+    strains = st.error ? [] : st.data;
+    if(st.error) console.warn("mn_strains table not found yet — re-run schema.sql for Batch IDs and strain codes.",st.error);
+    for(const k in unitsCache) delete unitsCache[k];
     cache(); setSync("ok","Synced");
   }catch(e){
     console.error(e); loadCache();
@@ -1780,11 +1863,12 @@ async function clearReadyDate(id){
 
 /* ================= ROUTING ================= */
 function showView(name, push=true){
+  if(name!=="batch") highlightUnitCode=null;
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   $("view-"+name).classList.add("active");
   const navKey = (name==="room"||name==="roomsetup") ? (roomKind==="incubation"?"incubation":"room") : name;
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active", b.dataset.view===navKey));
-  if(push){ const url = name==="batch"&&currentBatchId ? "?batch="+(batches.find(b=>b.id===currentBatchId)?.batch_no??"") : location.pathname; history.pushState({},"",url); }
+  if(push){ const cb=batches.find(b=>b.id===currentBatchId); const url = name==="batch"&&cb ? "?batch="+(cb.batch_code||cb.batch_no) : location.pathname; history.pushState({},"",url); }
   window.scrollTo(0,0);
 }
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
@@ -1797,9 +1881,16 @@ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
   showView(v);
 });
 window.addEventListener("popstate", ()=>{ routeFromURL(false); });
+function findBatchByParam(p){
+  return batches.find(x=>x.batch_code && x.batch_code===p) || batches.find(x=>String(x.batch_no)===String(p)) || batches.find(x=>x.id===p);
+}
 function routeFromURL(push){
-  const p = new URLSearchParams(location.search).get("batch");
-  if(p){ const b = batches.find(x=>String(x.batch_no)===String(p)) || batches.find(x=>x.id===p);
+  const qs=new URLSearchParams(location.search);
+  const u=qs.get("u");
+  if(u){ const id=parseIdInput(u); const b=id && batches.find(x=>x.batch_code===id.batchCode);
+    if(b){ highlightUnitCode=id.unitCode; openBatch(b.id, push); return; } }
+  const p = qs.get("batch");
+  if(p){ const b = findBatchByParam(p);
     if(b){ openBatch(b.id, push); return; } }
   showView("pipeline", push);
 }
@@ -1813,28 +1904,46 @@ function routeFromURL(push){
    found" case, which silently lands on Pipeline either way, same as
    typing a stale ?batch= by hand already does. ===== */
 let scanStream=null, scanRAF=null;
-async function openScanModal(){
+// A scan handler (Place → Scan blocks) gets every scanned/typed ID instead
+// of the default "open that batch" navigation; it returns true to keep the
+// camera going for the next block. scanBusy stops a second read landing
+// while one is still saving, and the same label held in front of the
+// camera isn't re-read for a few seconds.
+let scanHandler=null, scanBusy=false, lastScanText="", lastScanAt=0, scanPrompt="";
+function setScanStatus(text,tone){
+  const el=$("scan_status"); el.textContent=text;
+  el.style.color = tone==="bad"?"var(--danger)":tone==="ok"?"var(--st-fruiting)":"";
+  el.style.fontWeight = tone?"600":"";
+}
+async function openScanModal(handler, title, prompt){
+  scanHandler = typeof handler==="function" ? handler : null;
+  scanPrompt = prompt || "Point the camera at a label's QR code…";
+  $("scan_title").textContent = title || "Scan a block";
+  $("scan_manual").value="";
   openModal("scanModal");
-  $("scan_status").textContent="Requesting camera…";
+  setScanStatus("Requesting camera…");
   if(!navigator.mediaDevices?.getUserMedia){
-    $("scan_status").textContent="This browser can't access the camera - try a recent Chrome/Safari on the phone you're auditing with.";
+    setScanStatus("This browser can't access the camera - type the ID below instead, or try a recent Chrome/Safari.");
     return;
   }
   try{
     // environment = rear camera, the one actually pointed at a shelf label.
     scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});
   }catch(e){
-    $("scan_status").textContent="Couldn't access the camera - check the browser has camera permission for this site and try again.";
+    setScanStatus("Couldn't access the camera - check camera permission for this site, or type the ID below.");
     return;
   }
   const video=$("scan_video");
   video.srcObject=scanStream;
   await video.play();
-  $("scan_status").textContent="Point the camera at a label's QR code…";
+  if(!$("scan_status").style.fontWeight) setScanStatus(scanPrompt);
   scanLoop();
 }
 function closeScanModal(){
   closeModal("scanModal");
+  const wasPlacing=!!scanPlaceSlot;
+  scanHandler=null; scanBusy=false; scanPlaceSlot=null;
+  if(wasPlacing) renderRoom();
   if(scanRAF){ cancelAnimationFrame(scanRAF); scanRAF=null; }
   if(scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream=null; }
 }
@@ -1847,28 +1956,49 @@ function scanLoop(){
     ctx.drawImage(video,0,0,canvas.width,canvas.height);
     const img=ctx.getImageData(0,0,canvas.width,canvas.height);
     const code=jsQR(img.data,img.width,img.height);
-    if(code){ handleScanResult(code.data); return; }
+    if(code && !(code.data===lastScanText && Date.now()-lastScanAt<3000)){ lastScanText=code.data; lastScanAt=Date.now(); handleScanResult(code.data); return; }
   }
   scanRAF=requestAnimationFrame(scanLoop);
 }
-function handleScanResult(text){
-  let url=null; try{ url=new URL(text,location.href); }catch(e){}
-  const batchParam=url?url.searchParams.get("batch"):null;
-  if(!batchParam){
+function submitScanManual(){
+  const v=$("scan_manual").value.trim(); if(!v) return;
+  $("scan_manual").value="";
+  if(scanRAF){ cancelAnimationFrame(scanRAF); scanRAF=null; }
+  handleScanResult(v);
+}
+function resumeScan(){ if(scanStream && !scanRAF) scanRAF=requestAnimationFrame(scanLoop); }
+async function handleScanResult(text){
+  scanRAF=null;
+  if(scanBusy) return;
+  if(scanHandler){
+    scanBusy=true;
+    let keepGoing=true;
+    try{ keepGoing=await scanHandler(text); }catch(e){ console.error(e); setScanStatus("Something went wrong: "+e.message,"bad"); }
+    scanBusy=false;
+    if(keepGoing && scanHandler) resumeScan();
+    return;
+  }
+  // Default: open what was scanned. Labels carry ?u=<Block ID> or
+  // ?batch=<Batch ID>; older labels carry ?batch=<batch_no>. A bare ID typed
+  // in by hand works too.
+  const id=parseIdInput(text);
+  let batchParam=null; try{ batchParam=new URL(text).searchParams.get("batch"); }catch(e){}
+  if(!id && !batchParam){
     // Not one of our own labels - keep scanning rather than dead-ending
     // the modal on a stray QR code someone's phone camera happened to
     // catch mid-audit.
-    $("scan_status").textContent="That's not one of our batch labels - try again.";
-    scanRAF=requestAnimationFrame(scanLoop);
+    setScanStatus("That's not one of our labels or IDs - try again.","bad");
+    resumeScan();
     return;
   }
+  const b = id ? batches.find(x=>x.batch_code===id.batchCode) : findBatchByParam(batchParam);
+  if(!b){ setScanStatus(`No batch with ID ${id?id.batchCode:batchParam}.`,"bad"); resumeScan(); return; }
   closeScanModal();
-  const qs=new URLSearchParams(location.search);
-  qs.set("batch",batchParam);
+  const qs=new URLSearchParams();
+  if(id?.unitCode) qs.set("u",id.unitCode); else qs.set("batch",b.batch_code||b.batch_no);
   history.pushState({},"",location.pathname+"?"+qs.toString());
   routeFromURL(false);
 }
-
 /* ================= RENDER: PIPELINE ================= */
 /* When a batch is marked ready to fruit, its still-incubating blocks are shown as
    "ready" (purple) everywhere blocks are visualised, without changing the underlying count. */
@@ -1996,8 +2126,9 @@ function renderPipeline(){
   const cols = {incubating:[],ready:[],fruiting:[],complete:[],offramp:[]};
   for(const b of batches){
     if(b.archived) continue;
-    const hay = [b.name,b.species,b.substrate,b.spawn_code,b.method,"#"+b.batch_no].join(" ").toLowerCase();
-    if(q && !hay.includes(q)) continue;
+    const hay = [b.name,b.species,b.substrate,b.spawn_code,b.method,b.batch_code||"#"+b.batch_no,b.strain_code||""].join(" ").toLowerCase();
+    const qid = q && parseIdInput(q);
+    if(q && !hay.includes(q) && !(qid && b.batch_code===qid.batchCode)) continue;
     cols[batchColumn(b)].push(b);
   }
   const colDefs=[["incubating","Incubating"],["ready","Ready to fruit"],["fruiting","Fruiting"],["complete","Complete"],["offramp","Off-ramp"]];
@@ -2041,7 +2172,7 @@ function cardHTML(b){
     <div class="card-head">
       ${pinwheelHTML(b)}
       <div class="card-head-text">
-        <h3>${esc(b.name)} <span class="bno mono">#${b.batch_no}</span></h3>
+        <h3>${esc(b.name)} ${batchTagHTML(b)}</h3>
         <div class="species">${esc(b.species)}${b.spawn_code?` · <span class="mono">${esc(b.spawn_code)}</span>`:""}</div>
       </div>
     </div>
@@ -2063,6 +2194,7 @@ function openBatch(id, push=true){
 function renderBatch(){
   const b=batches.find(x=>x.id===currentBatchId);
   if(!b){ showView("pipeline",false); return; }
+  setTimeout(()=>renderUnitsBox(b),0);
   const c=batchCounts(b), y=batchYield(b);
   const bc=batchCost(b); const cost=bc?bc.cost:null;
   const skg=substrateKg(b);
@@ -2080,7 +2212,7 @@ function renderBatch(){
   $("view-batch").innerHTML = `
     <div class="detail-head">
       <button class="btn btn-sm" onclick="showView('pipeline')">← Back</button>
-      <h2>${esc(b.name)} <span class="bno mono">#${b.batch_no}</span></h2>
+      <h2>${esc(b.name)} ${batchTagHTML(b)}</h2>
       <button class="btn btn-sm" onclick="showQR('${b.id}')">QR</button>
       <button class="btn btn-sm" onclick="openForm('${b.id}')">Edit</button>
       <button class="btn btn-sm" onclick="toggleArchive('${b.id}')">${b.archived?"Unarchive":"Archive"}</button>
@@ -2104,7 +2236,8 @@ function renderBatch(){
       ${(()=>{ const on=placements.filter(p=>p.batch_id===b.id&&!p.removed_date); const inc=on.filter(p=>kindOfPlacement(p)==="incubation"), fr=on.filter(p=>kindOfPlacement(p)==="fruiting");
         const line=(label,ps,mt)=>ps.length?`<div style="margin-top:${mt}px;font-size:14px"><b>${label} (${ps.length}):</b> <span class="mono" style="color:var(--muted)">${ps.map(p=>p.slot_code).sort().join(", ")}</span></div>`:"";
         return line("On fruiting shelves",fr,12)+line("On incubation shelves",inc,fr.length?8:12); })()}
-      ${(()=>{ const off=placements.filter(p=>p.batch_id===b.id&&p.removed_date).sort((a,x)=>a.removed_date<x.removed_date?1:-1); return off.length?`<div style="margin-top:8px;font-size:14px"><b>Removed from shelves (${off.length}):</b><ul style="list-style:none;margin-top:4px">${off.map(p=>`<li style="color:var(--muted);padding:2px 0">${fmtDate(p.removed_date)} · <span class="mono">${esc(p.slot_code)}</span>${p.removed_note?` — ${esc(p.removed_note)}`:""}</li>`).join("")}</ul></div>`:""; })()}
+      <div id="unitsBox" style="margin-top:12px"></div>
+      ${(()=>{ const off=placements.filter(p=>p.batch_id===b.id&&p.removed_date).sort((a,x)=>a.removed_date<x.removed_date?1:-1); return off.length?`<div style="margin-top:8px;font-size:14px"><b>Removed from shelves (${off.length}):</b><ul style="list-style:none;margin-top:4px">${off.map(p=>`<li style="color:var(--muted);padding:2px 0">${fmtDate(p.removed_date)} · <span class="mono">${esc(p.slot_code)}${p.unit_code?` (${esc(p.unit_code)})`:""}</span>${p.removed_note?` — ${esc(p.removed_note)}`:""}</li>`).join("")}</ul></div>`:""; })()}
       <div style="margin-top:14px;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <b>Ready to fruit:</b>
         ${b.ready_date?`<span>${fmtDate(b.ready_date)} <span style="color:var(--muted)">(${daysBetween(b.inoc_date,b.ready_date)} days from inoc)</span></span>`:`<span style="color:var(--muted)">Not marked yet</span>`}
@@ -2122,6 +2255,8 @@ function renderBatch(){
     <div class="panel">
       <h3>Details</h3>
       <div class="info-grid">
+        <div><div class="k">Batch ID</div><div class="v mono">${esc(batchIdOf(b))}</div></div>
+        <div><div class="k">Strain</div><div class="v">${(()=>{ const s=strainOf(b); return b.strain_code?`<span class="strain-tag">${esc(b.strain_code)}</span>${s?` ${esc(s.species)}${s.variety?` · ${esc(s.variety)}`:""}${s.supplier?` <span style="color:var(--muted)">(${esc(s.supplier)})</span>`:""}`:""}`:"—"; })()}</div></div>
         <div><div class="k">Species</div><div class="v">${esc(b.species)||"—"}</div></div>
         <div><div class="k">Scientific</div><div class="v">${esc(b.scientific)||"—"}</div></div>
         <div><div class="k">Inoculated</div><div class="v">${fmtDate(b.inoc_date)}</div></div>
@@ -2144,6 +2279,92 @@ function renderBatch(){
     </div>`;
 }
 
+/* Block IDs of a batch with where each block is right now. Loaded on
+   demand (see fetchUnits); a scanned Block ID arriving via ?u= is
+   highlighted and spelled out at the top. */
+async function renderUnitsBox(b){
+  const box=$("unitsBox"); if(!box || !b.batch_code) return;
+  const units=await fetchUnits(b.id);
+  if(!units || currentBatchId!==b.id || !$("unitsBox")) return;
+  const where={};
+  for(const p of placements) if(p.unit_id && !p.removed_date) where[p.unit_id]=p;
+  const active=units.filter(u=>!u.voided_at), voided=units.length-active.length;
+  const hl=highlightUnitCode && highlightUnitCode.startsWith(b.batch_code+"-") ? highlightUnitCode : null;
+  const hu=hl && units.find(u=>u.unit_code===hl);
+  const loc=u=>{ const p=where[u.id]; return p?`${p.slot_code} (${kindOfPlacement(p)==="incubation"?"incubation":"fruiting"})`:"not on a shelf"; };
+  $("unitsBox").innerHTML=`
+    ${hl?`<div class="note-banner">${hu?`Scanned block <b class="mono">${esc(hl)}</b> ${b.strain_code?`<span class="strain-tag">${esc(b.strain_code)}</span> `:""}— ${hu.voided_at?"<b>retired</b> (removed from this batch)":esc(loc(hu))}`:`Block <b class="mono">${esc(hl)}</b> doesn't exist in this batch.`}</div>`:""}
+    <div style="font-size:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>Block IDs (${active.length}${voided?`, ${voided} retired`:""}):</b>
+      <button class="btn btn-sm" onclick="printUnitLabels('${b.id}')">🖨 Block labels</button></div>
+    <div class="unit-list mono">${units.map(u=>{ const p=where[u.id]; const cls=[u.voided_at?"void":"", p?(kindOfPlacement(p)==="incubation"?"inc":"on"):"", u.unit_code===hl?"hl":""].join(" ").trim();
+      return `<span class="${cls}" title="${esc(u.unit_code)} · ${u.voided_at?"retired":esc(loc(u))}">${esc(u.unit_code.slice(b.batch_code.length+1))}</span>`; }).join("")}</div>`;
+}
+
+/* ================= STRAINS (mn_strains, "ID Cepa") ================= */
+let strainsReturnView="pipeline", strainDraft=false;
+function openStrains(){
+  const cur=document.querySelector(".view.active")?.id?.replace("view-","");
+  strainsReturnView = cur && cur!=="strains" ? cur : "pipeline";
+  strainDraft=false; renderStrains(); showView("strains");
+}
+function closeStrains(){
+  if(strainsReturnView==="form"){
+    // keep whatever was typed in the batch form, just refresh its strain list
+    const keep=$("f_strain").value, b=editingId?batches.find(x=>x.id===editingId):null;
+    $("f_strain").innerHTML=`<option value="">— none —</option>`+strains.filter(s=>s.active!==false||s.code===b?.strain_code).map(s=>`<option value="${esc(s.code)}">${esc(s.code)} — ${esc(s.species)}${s.variety?` · ${esc(s.variety)}`:""}${s.supplier?` (${esc(s.supplier)})`:""}</option>`).join("");
+    $("f_strain").value=keep;
+    showView("form",false); return;
+  }
+  if(strainsReturnView==="batch" && currentBatchId){ openBatch(currentBatchId,false); return; }
+  showView(strainsReturnView);
+}
+function addStrainRow(){ strainDraft=true; renderStrains(); setTimeout(()=>$("st_code_new")?.focus(),50); }
+function renderStrains(){
+  const wrap=$("strainsWrap"); if(!wrap) return;
+  const showAll=$("st_showInactive").checked;
+  const used={}; for(const b of batches) if(b.strain_code) used[b.strain_code]=(used[b.strain_code]||0)+1;
+  const rows=strains.filter(s=>showAll||s.active!==false).sort((a,b)=>a.code.localeCompare(b.code));
+  const row=(s,id)=>`<tr>
+    <td><input id="st_code_${id}" class="mono" value="${esc(s.code||"")}" maxlength="8" style="width:90px;text-transform:uppercase"></td>
+    <td><input id="st_species_${id}" value="${esc(s.species||"")}" placeholder="Pleurotus ostreatus"></td>
+    <td><input id="st_variety_${id}" value="${esc(s.variety||"")}"></td>
+    <td><input id="st_supplier_${id}" value="${esc(s.supplier||"")}"></td>
+    <td style="text-align:center"><input type="checkbox" id="st_active_${id}" ${s.active!==false?"checked":""} style="width:auto"></td>
+    <td style="color:var(--muted);font-size:13px;text-align:center">${id==="new"?"":(used[s.code]||0)}</td>
+    <td style="white-space:nowrap"><button class="btn btn-sm" onclick="saveStrain('${id}')">Save</button>
+      ${id==="new"?`<button class="btn btn-sm" onclick="strainDraft=false;renderStrains()">✕</button>`:`<button class="btn btn-sm btn-danger" onclick="deleteStrain('${id}')">✕</button>`}</td>
+  </tr>`;
+  if(!strains.length && !strainDraft){
+    wrap.innerHTML=`<div class="empty">No strains yet. Add one, or re-run <span class="mono">schema.sql</span> in Supabase — it creates the <span class="mono">mn_strains</span> table with your starting list.</div>`;
+    return;
+  }
+  wrap.innerHTML=`<table class="tbl" style="width:100%;min-width:720px">
+    <thead><tr><th>ID Cepa</th><th>Species</th><th>Variety</th><th>Supplier</th><th>Active</th><th>Batches</th><th></th></tr></thead>
+    <tbody>${strainDraft?row({active:true},"new"):""}${rows.map(s=>row(s,s.id)).join("")}</tbody></table>`;
+}
+async function saveStrain(id){
+  const code=$("st_code_"+id).value.trim().toUpperCase();
+  const rec={code, species:$("st_species_"+id).value.trim(), variety:$("st_variety_"+id).value.trim()||null,
+    supplier:$("st_supplier_"+id).value.trim()||null, active:$("st_active_"+id).checked, updated_at:new Date().toISOString()};
+  if(!/^[A-Z0-9]{2,8}$/.test(code)){ alert("ID Cepa must be 2–8 letters/digits, e.g. BOCF."); return; }
+  if(!rec.species){ alert("Species is required."); return; }
+  if(id==="new"){
+    if(await write(db.from("mn_strains").insert(rec),"Couldn't add strain (is that ID already used?)")){ strainDraft=false; renderStrains(); }
+    return;
+  }
+  const old=strains.find(s=>s.id===id);
+  const n=batches.filter(b=>b.strain_code===old?.code).length;
+  if(old && old.code!==code && n && !confirm(`Rename ${old.code} to ${code}? ${n} batch${n===1?"":"es"} will show the new code. Labels already printed keep the old one.`)) return;
+  if(await write(db.from("mn_strains").update(rec).eq("id",id),"Couldn't save strain (is that ID already used?)")) renderStrains();
+}
+async function deleteStrain(id){
+  const s=strains.find(x=>x.id===id); if(!s) return;
+  const n=batches.filter(b=>b.strain_code===s.code).length;
+  if(n){ alert(`${s.code} is used by ${n} batch${n===1?"":"es"} and can't be deleted. Untick Active instead so it stops appearing for new batches.`); return; }
+  if(!confirm(`Delete strain ${s.code}?`)) return;
+  if(await write(db.from("mn_strains").delete().eq("id",id),"Couldn't delete strain")) renderStrains();
+}
+
 /* ================= FORM ================= */
 let blockLineState=[];
 function openForm(id){
@@ -2151,8 +2372,11 @@ function openForm(id){
   $("formTitle").textContent = id?"Edit batch":"New batch";
   const b = id ? batches.find(x=>x.id===id) : null;
   $("f_id").value=b?.id||"";
-  $("f_no").value=b?.batch_no ?? (batches.reduce((m,x)=>Math.max(m,x.batch_no),0)+1);
   $("f_date").value=b?.inoc_date||todayISO();
+  const act=strains.filter(s=>s.active!==false || s.code===b?.strain_code);
+  $("f_strain").innerHTML=`<option value="">— none —</option>`+act.map(s=>`<option value="${esc(s.code)}">${esc(s.code)} — ${esc(s.species)}${s.variety?` · ${esc(s.variety)}`:""}${s.supplier?` (${esc(s.supplier)})`:""}</option>`).join("");
+  $("f_strain").value=b?.strain_code||"";
+  updateCodePreview();
   $("f_name").value=b?.name||"";
   $("f_species").value=b?.species||"";
   $("f_sci").value=b?.scientific||"";
@@ -2193,7 +2417,39 @@ function openForm(id){
   };
   const subs=[...new Set(batches.map(x=>x.substrate).filter(Boolean))];
   $("subList").innerHTML=subs.map(s=>`<option value="${esc(s)}">`).join("");
+  setFormLocked(!!b);
   showView("form");
+}
+/* Once a batch is sown its details are fixed - the edit form opens
+   read-only, with an explicit "Correct details" unlock for genuine
+   mistakes. The Batch ID itself never changes, even if the inoculation
+   date is corrected (labels may already be printed with it). */
+function setFormLocked(locked){
+  const f=$("view-form");
+  f.querySelectorAll("input:not([type=hidden]),select,textarea,#blockLines button,#view-form .formwrap > .btn").forEach(el=>el.disabled=locked);
+  f.classList.toggle("form-locked",locked);
+  $("f_save").style.display=locked?"none":"";
+  $("f_lockNote").innerHTML = !editingId ? "" : locked
+    ? `<div class="note-banner" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">🔒 This batch's details are fixed since it was sown. <button class="btn btn-sm" onclick="unlockBatchForm()">✎ Correct details</button></div>`
+    : `<div class="note-banner">Correcting a mistake. The Batch ID stays the same even if you change the inoculation date. Adding blocks gives them the next block numbers; removing blocks retires the highest unplaced ones — block numbers are never reused.</div>`;
+}
+function unlockBatchForm(){
+  if(!confirm("Correct this batch's details? Only do this to fix a mistake - the Batch ID and any printed labels stay the same.")) return;
+  setFormLocked(false);
+}
+function updateCodePreview(){
+  const b=editingId?batches.find(x=>x.id===editingId):null;
+  if(b){ $("f_code").innerHTML=`${esc(batchIdOf(b))}${b.strain_code?` <span class="strain-tag">${esc(b.strain_code)}</span>`:""}`; return; }
+  const d=$("f_date").value||todayISO();
+  const dt=new Date(d+"T12:00:00"), start=new Date(dt.getFullYear(),0,1,12);
+  const doy=Math.round((dt-start)/864e5)+1;
+  const prefix=String(dt.getFullYear()).slice(2)+String(doy).padStart(3,"0");
+  const next=batches.filter(x=>x.inoc_date===d && x.batch_seq).reduce((m,x)=>Math.max(m,x.batch_seq),0)+1;
+  $("f_code").innerHTML=`<span style="color:var(--muted)">${prefix}-${fmtSeq(next)} <span style="font-weight:400;font-size:12px">(assigned when saved)</span></span>`;
+}
+function strainPicked(){
+  const s=strains.find(x=>x.code===$("f_strain").value);
+  if(s && !$("f_sci").value.trim()) $("f_sci").value=s.species;
 }
 function renderBlockLines(){
   $("blockLines").innerHTML = blockLineState.map((l,i)=>`
@@ -2220,19 +2476,27 @@ async function saveBatch(){
   const blocks=lines.reduce((s,l)=>s+l.count,0);
   if(!name||!species){ alert("Batch name and species are required."); return; }
   if(!blocks){ alert("Add at least one block size with a count."); return; }
+  const prev=editingId?batches.find(x=>x.id===editingId):null;
+  if(blocks>99 && (!prev || prev.blocks_total<blocks) && (!prev || prev.blocks_total<=99)){ alert("A batch can have up to 99 blocks (Block IDs run 01-99). Split it into two batches."); return; }
   const rec={
-    batch_no:parseInt($("f_no").value,10)||1, name, species,
+    name, species, strain_code:$("f_strain").value||null,
     scientific:$("f_sci").value.trim()||null, substrate:$("f_substrate").value.trim()||null,
     method:$("f_method").value.trim()||null, spawn_code:$("f_spawn").value.trim()||null,
     inoc_date:$("f_date").value||todayISO(), blocks_total:blocks,
     block_sizes:lines.length?lines:null, notes:$("f_notes").value.trim()||null
   };
+  // a database without the strain column yet can still save batches
+  if(!rec.strain_code && !(prev && "strain_code" in prev)) delete rec.strain_code;
   if(editingId){
     const b=batches.find(x=>x.id===editingId);
     const moved = b.blocks_total - batchCounts(b).incubating;
     if(blocks<moved){ alert(`Can't set total blocks below ${moved} — that many have already been moved out of incubation.`); return; }
     if(await write(db.from("mn_batches").update(rec).eq("id",editingId),"Couldn't update batch")) openBatch(editingId);
   }else{
+    // batch_no is only sent for databases that haven't had schema.sql's
+    // Batch ID triggers added yet - once they're there the database assigns
+    // batch_no, batch_seq and batch_code itself and ignores this value.
+    rec.batch_no=batches.reduce((m,x)=>Math.max(m,x.batch_no),0)+1;
     const {data,error}=await db.from("mn_batches").insert(rec).select().single();
     if(error){ alert("Couldn't create batch.\n\n"+error.message); return; }
     await loadAll(); openBatch(data.id);
@@ -2244,7 +2508,7 @@ async function toggleArchive(id){
 }
 async function deleteBatch(id){
   const b=batches.find(x=>x.id===id);
-  if(!confirm(`Delete "${b.name}" (#${b.batch_no}) and ALL its movements and harvests? This can't be undone.\n\nIf you just want it out of the way, use Archive instead.`)) return;
+  if(!confirm(`Delete "${b.name}" (${batchTagText(b)}) and ALL its movements and harvests? This can't be undone.\n\nIf you just want it out of the way, use Archive instead.`)) return;
   if(await write(db.from("mn_batches").delete().eq("id",id),"Couldn't delete")) showView("pipeline");
 }
 async function deleteLog(type,id){
@@ -2272,7 +2536,7 @@ document.querySelectorAll(".modal-bg").forEach(m=>m.addEventListener("click",e=>
 function openMove(batchId){
   modalBatchId=batchId;
   const b=batches.find(x=>x.id===batchId), c=batchCounts(b);
-  $("mv_sub").textContent=`${b.name} #${b.batch_no}`;
+  $("mv_sub").textContent=`${b.name} ${batchTagText(b)}`;
   const from=STATE_ORDER.filter(s=>c[s]>0);
   $("mv_from").innerHTML=from.map(s=>`<option value="${s}">${STATES[s].label} (${c[s]} available)</option>`).join("");
   moveFromChanged();
@@ -2344,7 +2608,7 @@ function openHarvest(batchId, slotCode){
   $("harvestModalTitle").textContent="Log harvest";
   $("harvestModalSaveBtn").textContent="Save harvest";
   const b=batches.find(x=>x.id===batchId);
-  $("hv_sub").textContent=`${b.name} #${b.batch_no}`+(harvestSlot?` · slot ${harvestSlot}`:"");
+  $("hv_sub").textContent=`${b.name} ${batchTagText(b)}`+(harvestSlot?` · slot ${harvestSlot}`:"");
   // Flush number is per physical block, not per batch — a batch's blocks are
   // usually on staggered flush cycles, so the count should only go up once
   // THIS specific slot has already produced a prior flush. When harvesting
@@ -2371,7 +2635,7 @@ function editHarvest(id){
   modalBatchId=h.batch_id; harvestSlot=h.slot_code||null; editingHarvestId=h.id;
   $("harvestModalTitle").textContent="Edit harvest";
   $("harvestModalSaveBtn").textContent="Update harvest";
-  $("hv_sub").textContent=`${b?.name||"?"} #${b?.batch_no??"?"}`+(harvestSlot?` · slot ${harvestSlot}`:"");
+  $("hv_sub").textContent=`${b?.name||"?"} ${batchTagText(b)}`+(harvestSlot?` · slot ${harvestSlot}`:"");
   $("hv_weight").value=h.weight_g; $("hv_flush").value=h.flush||""; $("hv_date").value=h.harvest_date; $("hv_note").value=h.note||"";
   openModal("harvestModal");
   setTimeout(()=>$("hv_weight").focus(),100);
@@ -2387,7 +2651,7 @@ function addChip(t){ const n=$("hv_note"); n.value=n.value?n.value+", "+t:t; }
 function openNoteModal(batchId){
   modalBatchId=batchId;
   const b=batches.find(x=>x.id===batchId);
-  $("note_sub").textContent=`${b.name} #${b.batch_no}`;
+  $("note_sub").textContent=`${b.name} ${batchTagText(b)}`;
   $("note_date").value=todayISO();
   $("note_text").value="";
   openModal("noteModal");
@@ -2454,10 +2718,10 @@ async function saveHarvest(){
 }
 
 /* ================= QR ================= */
-function batchURL(b){ return location.origin+location.pathname+"?batch="+b.batch_no; }
+function batchURL(b){ return location.origin+location.pathname+"?batch="+encodeURIComponent(b.batch_code||b.batch_no); }
 function showQR(id){
   const b=batches.find(x=>x.id===id);
-  $("qr_title").textContent=`${b.name} #${b.batch_no}`;
+  $("qr_title").textContent=`${b.name} ${batchTagText(b)}`;
   $("qr_sub").textContent=b.species;
   $("qr_box").innerHTML=""; $("qr_url").textContent=batchURL(b);
   new QRCode($("qr_box"),{text:batchURL(b),width:200,height:200,correctLevel:QRCode.CorrectLevel.M});
@@ -2586,10 +2850,19 @@ function renderRoom(){
   wrap.className = "mode-"+roomMode;
   // place banner
   const pb=$("placeBanner");
-  if(roomMode==="place"){
-    const opts=batches.filter(b=>!b.archived && (!inc || batchCounts(b).incubating>0)).sort((a,b)=>b.batch_no-a.batch_no)
-      .map(b=>`<option value="${b.id}" ${b.id===placeBatchId?"selected":""}>#${b.batch_no} ${esc(b.name)} (${esc(b.species)})</option>`).join("");
+  if(roomMode==="place" && placeByScan){
     pb.innerHTML=`<div class="note-banner" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="seg"><button onclick="setPlaceByScan(false)">By batch</button><button class="active">Scan blocks</button></div>
+      <span>Tap the empty slot where the block goes, then scan its label — the camera stays on and moves to the next empty slot after each block.</span>
+      <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;margin:0">Date placed:
+        <input type="date" id="placeDate" value="${placeDate||todayISO()}" max="${todayISO()}" onchange="placeDate=this.value||todayISO()" style="width:auto">
+      </label>
+    </div>`;
+  } else if(roomMode==="place"){
+    const opts=batches.filter(b=>!b.archived && (!inc || batchCounts(b).incubating>0)).sort((a,b)=>b.batch_no-a.batch_no)
+      .map(b=>`<option value="${b.id}" ${b.id===placeBatchId?"selected":""}>${esc(batchTagText(b))} ${esc(b.name)} (${esc(b.species)})</option>`).join("");
+    pb.innerHTML=`<div class="note-banner" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="seg"><button class="active">By batch</button><button onclick="setPlaceByScan(true)">Scan blocks</button></div>
       <b>Placing:</b>
       <select id="placeSel" style="max-width:340px;width:auto" onchange="placeBatchSelChanged()">
         <option value="">— pick a batch —</option>${opts}
@@ -2616,7 +2889,7 @@ function renderRoom(){
   if(orphans.length){
     pb.innerHTML += `<div class="note-banner" style="border-color:rgba(var(--danger-rgb),.35);background:rgba(var(--danger-rgb),.1);color:var(--danger)">
       ⚠ ${orphans.length} block${orphans.length===1?"":"s"} got stuck mid-move and ${orphans.length===1?"isn't":"aren't"} showing on any shelf right now. Nothing was deleted — batch, movement and harvest data are all intact.
-      ${orphans.map(o=>{const b=batches.find(x=>x.id===o.batch_id); return `<div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>${esc(b?.name||"?")}</b> <span class="mono">#${b?.batch_no??"?"}</span><button class="btn btn-sm" onclick="recoverOrphan('${o.id}')">Clear from shelf</button></div>`;}).join("")}
+      ${orphans.map(o=>{const b=batches.find(x=>x.id===o.batch_id); return `<div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>${esc(b?.name||"?")}</b> <span class="mono">${esc(batchTagText(b))}</span><button class="btn btn-sm" onclick="recoverOrphan('${o.id}')">Clear from shelf</button></div>`;}).join("")}
     </div>`;
   }
   // duplicate slot claims — two active placements both sitting on the SAME
@@ -2633,7 +2906,7 @@ function renderRoom(){
       ${dupes.map(d=>{
         const codeEsc=esc(d.code).replace(/'/g,"\\'");
         return `<div style="margin-top:8px"><b class="mono">${esc(d.code)}</b>:
-          ${d.placements.map(p=>{const b=batches.find(x=>x.id===p.batch_id); return `<div style="margin:3px 0 3px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span><b>${esc(b?.name||"?")}</b> <span class="mono">#${b?.batch_no??"?"}</span> · placed ${fmtDate(p.placed_date)}</span><button class="btn btn-sm" onclick="keepThisDuplicate('${p.id}','${codeEsc}')">Keep this one</button></div>`;}).join("")}
+          ${d.placements.map(p=>{const b=batches.find(x=>x.id===p.batch_id); return `<div style="margin:3px 0 3px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span><b>${esc(b?.name||"?")}</b> <span class="mono">${esc(batchTagText(b))}</span> · placed ${fmtDate(p.placed_date)}</span><button class="btn btn-sm" onclick="keepThisDuplicate('${p.id}','${codeEsc}')">Keep this one</button></div>`;}).join("")}
         </div>`;
       }).join("")}
     </div>`;
@@ -2692,7 +2965,7 @@ function bayHTML(bay){
       const code=slotCode(bay,letter,n);
       const p=placementAt(code);
       if(!p){
-        const isPending=pendingPlaceSel.has(code);
+        const isPending=pendingPlaceSel.has(code) || scanPlaceSlot===code;
         const dropAttrs = ra ? ` ondragover="rearrangeDragOver(event)" ondragenter="rearrangeDragEnter(event)" ondragleave="rearrangeDragLeave(event)" ondrop="rearrangeDrop(event,'${code}')"` : "";
         return `<div class="slot empty${isPending?" pending-place":""}" id="sl_${code}" onclick="slotTap('${bay.id}','${letter}',${n})"${dropAttrs}>${isPending?"✓":letter+n}</div>`;
       }
@@ -2707,11 +2980,11 @@ function bayHTML(bay){
       const sel=removeSel.has(code)?" sel":"";
       const dragAttrs = ra ? ` draggable="true" ondragstart="rearrangeDragStart(event,'${code}')" ondragend="rearrangeDragEnd(event)" ondragover="rearrangeDragOver(event)" ondragenter="rearrangeDragEnter(event)" ondragleave="rearrangeDragLeave(event)" ondrop="rearrangeDrop(event,'${code}')"` : "";
       const titleSuffix = dueFlush ? " · likely ready for a 2nd flush check" : readyDot ? " · batch ready to fruit" : "";
-      return `<div class="slot full${sel}" id="sl_${code}" style="background:${col};color:${ink}" title="${code} · ${esc(b?.name||"")}${titleSuffix}" onclick="slotTap('${bay.id}','${letter}',${n})"${dragAttrs}>
+      return `<div class="slot full${sel}" id="sl_${code}" style="background:${col};color:${ink}" title="${code} · ${esc(p.unit_code||batchIdOf(b))} · ${esc(b?.name||"")}${titleSuffix}" onclick="slotTap('${bay.id}','${letter}',${n})"${dragAttrs}>
         ${dueFlush?`<span class="flush-due-dot" title="Likely ready for a 2nd flush check"></span>`:readyDot?`<span class="harv-dot" title="Batch ready to fruit"></span>`:hasHarv?`<span class="harv-dot"></span>`:""}
-        <span class="s-no">#${b?.batch_no??"?"}</span>
-        <span class="s-sp">${esc(b?.species||"")}</span>
-        <span class="s-d">${days}d</span>
+        <span class="s-no">${esc(batchIdOf(b))}</span>
+        <span class="s-sp">${esc(b?.strain_code||b?.species||"")}</span>
+        <span class="s-d">${p.unit_code?`#${esc(p.unit_code.slice(-2))} · `:""}${days}d</span>
         ${hasHarv?`<span class="s-y">${fmtWeight(y)}</span>`:""}
       </div>`;
     };
@@ -2743,6 +3016,11 @@ function slotTap(bayId,letter,n){
   if(roomMode==="rearrange"){
     return; // interaction here is drag-and-drop, not tap
   }
+  if(roomMode==="place" && placeByScan){
+    if(p){ alert(`${code} already has a block.`); return; }
+    startScanPlace(code);
+    return;
+  }
   if(roomMode==="place"){
     if(!placeBatchId){ alert("Pick a batch to place first (top of screen)."); return; }
     if(p){
@@ -2770,6 +3048,84 @@ function slotTap(bayId,letter,n){
   }
 }
 
+/* ===== Place by scanning Block IDs (2026-10) - records WHICH block went
+   into each slot (mn_placements.unit_id/unit_code). Same bookkeeping as
+   confirmPlace, one block at a time: placing in fruiting moves that block
+   incubating → fruiting and takes it off its incubation slot (or, for a
+   block that was never scanned into incubation, one of its batch's
+   unscanned incubation placements). ===== */
+function setPlaceByScan(on){ placeByScan=on; pendingPlaceSel.clear(); placeBatchId=null; renderRoom(); }
+function orderedSlotCodes(){
+  const out=[];
+  for(const r of roomsOfKind(roomKind)) for(const z of zonesOf(r)) for(const bay of baysOf(z))
+    for(let i=0;i<bay.rows;i++){ const L=rowLetter(i); for(let n=1;n<=bay.slots_per_row;n++) out.push(slotCode(bay,L,n)); }
+  return out;
+}
+function nextEmptySlotAfter(code){
+  const all=orderedSlotCodes(), i=all.indexOf(code);
+  for(let k=i+1;k<all.length;k++) if(!placementAt(all[k])) return all[k];
+  return null;
+}
+function startScanPlace(code){
+  scanPlaceSlot=code;
+  renderRoom();
+  if($("scanModal").classList.contains("open")){ setScanStatus(`Scan the block going into ${code}`); return; }
+  openScanModal(placeScannedUnit, `Place in ${roomKind==="incubation"?"incubation":"fruiting"}`, `Scan the block going into ${code}`);
+}
+function unitKg(b,unitNo){
+  const ls=blockLines(b); if(!ls) return null;
+  let acc=0; for(const l of ls){ acc+=l.count; if(unitNo<=acc) return l.kg; }
+  return null;
+}
+async function placeScannedUnit(text){
+  const target=scanPlaceSlot;
+  if(!target){ setScanStatus("Tap an empty slot first.","bad"); return false; }
+  const id=parseIdInput(text);
+  if(!id?.unitCode){ setScanStatus("That's not a block label - scan the block's own QR (e.g. 26279-02-17).","bad"); return true; }
+  const b=batches.find(x=>x.batch_code===id.batchCode);
+  if(!b){ setScanStatus(`No batch with ID ${id.batchCode}.`,"bad"); return true; }
+  const {data:u,error:ue}=await db.from("mn_units").select("*").eq("unit_code",id.unitCode).maybeSingle();
+  if(ue){ setScanStatus("Couldn't look up that block — has schema.sql been re-run? "+ue.message,"bad"); return true; }
+  if(!u){ setScanStatus(`Block ${id.unitCode} doesn't exist.`,"bad"); return true; }
+  if(u.voided_at){ setScanStatus(`Block ${id.unitCode} was retired from its batch.`,"bad"); return true; }
+  const inc = roomKind==="incubation";
+  const cur=placements.find(p=>p.unit_id===u.id && !p.removed_date);
+  if(cur && kindOfPlacement(cur)===roomKind){ setScanStatus(`${id.unitCode} is already on ${cur.slot_code}.`,"bad"); return true; }
+  if(cur && inc){ setScanStatus(`${id.unitCode} is in fruiting (${cur.slot_code}) — remove it there first.`,"bad"); return true; }
+  if(placementAt(target)){ setScanStatus(`${target} is already taken — tap another empty slot.`,"bad"); return true; }
+  const counts=batchCounts(b);
+  if(inc){
+    if(counts.incubating-activeIncPlacementsOf(b.id).length<1){ setScanStatus(`All of ${b.batch_code}'s incubating blocks are already on incubation shelves.`,"bad"); return true; }
+  } else if(counts.incubating<1){ setScanStatus(`${b.batch_code} has no blocks left in incubation to move into fruiting.`,"bad"); return true; }
+  const m=parseSlotCode(target), bay=m&&bays.find(x=>x.bay_no===m.bayNo);
+  if(!bay){ setScanStatus("Couldn't find that slot's bay.","bad"); return false; }
+  const date=placeDate||todayISO();
+  setSync("","Placing…");
+  const {data:placed,error:pe}=await db.from("mn_placements").insert({bay_id:bay.id, slot_code:target, row_letter:m.letter, slot_num:m.slotNum, batch_id:b.id, placed_date:date, unit_id:u.id, unit_code:u.unit_code}).select().single();
+  if(pe){ setSync("bad","Save failed"); setScanStatus("Couldn't place it — nothing saved. "+pe.message,"bad"); return true; }
+  if(!inc){
+    const sizes=sizesInState(b,"incubating").filter(s=>s.count>0);
+    const want=unitKg(b,u.unit_no);
+    const kg=sizes.length===0?null:(sizes.find(s=>s.kg===want)||sizes[0]).kg;
+    const {error:me}=await db.from("mn_movements").insert({batch_id:b.id, move_date:date, from_state:"incubating", to_state:"fruiting", count:1, kg, note:`Auto: block ${u.unit_code} placed in fruiting chamber`});
+    if(me){
+      await db.from("mn_placements").delete().eq("id",placed.id);
+      setSync("bad","Save failed"); setScanStatus("Couldn't record the move to fruiting — nothing saved. "+me.message,"bad"); return true;
+    }
+    const incP = (cur && kindOfPlacement(cur)==="incubation") ? cur
+      : activeIncPlacementsOf(b.id).filter(p=>!p.unit_id).sort((a,x)=>a.placed_date<x.placed_date?-1:a.placed_date>x.placed_date?1:0)[0];
+    if(incP) await db.from("mn_placements").update({removed_date:date, removed_note:"Moved to fruiting"}).eq("id",incP.id);
+  }
+  await loadAll();
+  setSync("ok","Synced");
+  const next=nextEmptySlotAfter(target);
+  scanPlaceSlot=next;
+  renderRoom();
+  if(!next){ setScanStatus(`✓ ${u.unit_code} → ${target}. No empty slots left here.`,"ok"); return false; }
+  setScanStatus(`✓ ${u.unit_code} ${b.strain_code||""} → ${target}. Next: scan the block for ${next}`,"ok");
+  return true;
+}
+
 /* ===== Slot detail: what THIS physical block has yielded, not the whole batch ===== */
 let slotDetailCode=null, slotDetailBatchId=null;
 function openSlotDetail(bayId,letter,n){
@@ -2786,7 +3142,7 @@ function openSlotDetail(bayId,letter,n){
   const totalY=hs.reduce((s,h)=>s+Number(h.weight_g),0);
   const days=daysBetween(p.placed_date,todayISO());
   slotDetailCode=code; slotDetailBatchId=p.batch_id;
-  $("slot_title").textContent=`${b?.name||"?"} #${b?.batch_no??"?"} · ${code}`;
+  $("slot_title").textContent=`${b?.name||"?"} ${p.unit_code?p.unit_code+(b?.strain_code?" · "+b.strain_code:""):batchTagText(b)} · ${code}`;
   $("slot_sub").textContent=`${b?.species||""}${b?.spawn_code?` · ${b.spawn_code}`:""} · placed ${fmtDate(p.placed_date)}`;
   $("slot_stats").innerHTML=`
     <div class="stat"><div class="n">${fmtWeight(totalY)}</div><div class="l">Yield from this block</div></div>
@@ -3556,7 +3912,7 @@ async function persistLabelCfg(){
 function lblChanged(){
   labelCfg.size=$("lb_size").value;
   labelCfg.logoScale=parseInt($("lb_logosize").value,10)||100;
-  for(const f of ["species","scientific","inoc","spawn","substrate"]) labelCfg.fields[f]=$("lb_f_"+f).checked;
+  for(const f of ["species","scientific","inoc","spawn","substrate"]){ const el=$("lb_f_"+f); if(el) labelCfg.fields[f]=el.checked; }
   persistLabelCfg(); renderLabels();
 }
 function uploadLogo(e){
@@ -3575,25 +3931,27 @@ function uploadLogo(e){
 }
 function removeLogo(){ labelCfg.logo=null; persistLabelCfg(); renderLabels(); }
 
-function labelHTML(b){
+function labelHTML(b, unit){
   const sz=LBL_SIZES[labelCfg.size], big=sz.w>=300;
-  const qrSize=Math.min(sz.h-16, Math.round(sz.w*0.42));
-  const baseLogo=big?26:20, logoH=Math.round(baseLogo*(labelCfg.logoScale/100));
+  // small stock: a slightly smaller QR leaves room for the ID and strain
+  // code on one line
+  const qrSize=Math.min(sz.h-16, Math.round(sz.w*(sz.w<250?0.37:0.42)));
+  const idPx = sz.w<225 ? 10.5 : sz.w<250 ? 11 : sz.w<350 ? 15 : 18;
+  // Fixed layout (2026-10): ID + strain code, then inoculation date and
+  // spawn code, then the QR - nothing else, whatever the old per-field
+  // label settings said.
   const lines=[];
-  if(labelCfg.fields.species&&b.species) lines.push(esc(b.species));
-  if(labelCfg.fields.scientific&&b.scientific) lines.push(`<i>${esc(b.scientific)}</i>`);
-  if(labelCfg.fields.inoc) lines.push("Inoc "+fmtDate(b.inoc_date));
-  if(labelCfg.fields.spawn&&b.spawn_code) lines.push(`<span class="mono">${esc(b.spawn_code)}</span>`);
-  if(labelCfg.fields.substrate&&b.substrate) lines.push(esc(b.substrate));
+  if(b.spawn_code) lines.push(`<span class="mono">${esc(b.spawn_code)}</span>`);
+  const note=($("lb_note")?.value||"").trim();
   return `<div class="label" style="width:${sz.w}px;height:${sz.h}px">
       <div class="lmain">
-        ${labelCfg.logo?`<img class="llogo" src="${labelCfg.logo}" alt="" style="max-height:${logoH}px;max-width:${Math.min(90,Math.round(60*labelCfg.logoScale/100))}%">`:""}
-        <div class="lt" style="font-size:${big?11:9}px">
-          <div class="nm" style="font-size:${big?15:12}px">${esc(b.name)} <span class="mono">#${b.batch_no}</span></div>
+        <div class="lt" style="font-size:${big?12:10}px">
+          <div class="lid" style="font-size:${idPx}px"><span class="lcode">${esc(unit?unit.unit_code:batchIdOf(b))}</span>${b.strain_code?`<span class="lst">${esc(b.strain_code)}</span>`:""}</div>
           ${lines.map(l=>`<div class="ln">${l}</div>`).join("")}
+          <div class="lnote">${note?esc(note):"&nbsp;"}</div>
         </div>
       </div>
-      <div class="lq" data-qr="${b.batch_no}" data-qrsize="${qrSize}"></div>
+      <div class="lq" data-qr="${esc(unit?unitURL(unit.unit_code):batchURL(b))}" data-qrsize="${qrSize}"></div>
     </div>`;
 }
 function renderLabels(){
@@ -3608,12 +3966,28 @@ function renderLabels(){
   const sel=$("lb_batch");
   const prev=sel.value;
   sel.innerHTML = list.length
-    ? list.map(b=>`<option value="${b.id}">#${b.batch_no} — ${esc(b.name)} (${esc(b.species)})</option>`).join("")
+    ? list.map(b=>`<option value="${b.id}">${esc(batchTagText(b))} — ${esc(b.name)} (${esc(b.species)})</option>`).join("")
     : `<option value="">No active batches</option>`;
   if(prev && list.some(b=>b.id===prev)) sel.value=prev;
+  if(labelPreselect && list.some(b=>b.id===labelPreselect)){ sel.value=labelPreselect; labelPreselect=null; }
   const chosen=batches.find(b=>b.id===sel.value)||list[0];
-  // preview: one label
-  if(chosen){
+  const unitsMode=$("lb_mode").value==="units" && !!chosen?.batch_code;
+  $("lb_copiesWrap").style.display=unitsMode?"none":"";
+  $("lb_rangeWrap").style.display=unitsMode?"flex":"none";
+  // preview: one label (the first block in range, in block mode)
+  if(chosen && unitsMode){
+    fetchUnits(chosen.id).then(units=>{
+      // ignore a late answer if the batch or mode changed meanwhile
+      if($("lb_batch").value!==chosen.id || $("lb_mode").value!=="units") return;
+      const act=(units||[]).filter(u=>!u.voided_at);
+      if(!act.length){ $("labelSheet").innerHTML=`<div class="empty" style="width:100%">No Block IDs for this batch yet — re-run schema.sql if this batch was created before Block IDs existed.</div>`; return; }
+      if(!$("lb_from").value) $("lb_from").value=act[0].unit_no;
+      if(!$("lb_to").value) $("lb_to").value=act[act.length-1].unit_no;
+      const inRange=unitsInRange(act);
+      $("labelSheet").innerHTML=inRange.length?labelHTML(chosen,inRange[0]):`<div class="empty" style="width:100%">No blocks in that range.</div>`;
+      renderLabelQRs($("labelSheet"));
+    });
+  } else if(chosen){
     $("labelSheet").innerHTML=labelHTML(chosen);
     renderLabelQRs($("labelSheet"));
   } else {
@@ -3622,21 +3996,41 @@ function renderLabels(){
 }
 function renderLabelQRs(root){
   root.querySelectorAll(".lq").forEach(el=>{
-    const no=el.getAttribute("data-qr"), size=parseInt(el.getAttribute("data-qrsize"),10);
+    const text=el.getAttribute("data-qr"), size=parseInt(el.getAttribute("data-qrsize"),10);
     el.innerHTML="";
-    new QRCode(el,{text:location.origin+location.pathname+"?batch="+no,width:size,height:size,correctLevel:QRCode.CorrectLevel.M});
+    new QRCode(el,{text,width:size,height:size,correctLevel:QRCode.CorrectLevel.M});
   });
 }
-function printLabels(){
+let labelPreselect=null;
+function unitsInRange(units){
+  const from=parseInt($("lb_from").value,10)||1, to=parseInt($("lb_to").value,10)||999;
+  return units.filter(u=>u.unit_no>=from && u.unit_no<=to);
+}
+// From a batch's detail page: open the label builder on that batch's
+// block labels, whole range selected.
+function printUnitLabels(batchId){
+  labelPreselect=batchId; $("lb_mode").value="units"; $("lb_from").value=""; $("lb_to").value="";
+  renderLabels(); showView("qr");
+}
+async function printLabels(){
   const b=batches.find(x=>x.id===$("lb_batch").value);
   if(!b){ alert("Pick a batch to print."); return; }
-  const copies=Math.max(1,parseInt($("lb_copies").value,10)||1);
+  let labels;
+  if($("lb_mode").value==="units" && b.batch_code){
+    const units=await fetchUnits(b.id);
+    const sel=unitsInRange((units||[]).filter(u=>!u.voided_at));
+    if(!sel.length){ alert("No blocks in that range to print."); return; }
+    labels=sel.map(u=>labelHTML(b,u));
+  } else {
+    const copies=Math.max(1,parseInt($("lb_copies").value,10)||1);
+    labels=Array.from({length:copies}).map(()=>labelHTML(b));
+  }
   const sz=LBL_SIZES[labelCfg.size];
   const wmm=(sz.w/96*25.4).toFixed(1), hmm=(sz.h/96*25.4).toFixed(1);
   // build a dedicated print area: one label per page
   let area=$("printArea");
   if(!area){ area=document.createElement("div"); area.id="printArea"; document.body.appendChild(area); }
-  area.innerHTML = Array.from({length:copies}).map(()=>`<div class="print-label">${labelHTML(b)}</div>`).join("");
+  area.innerHTML = labels.map(l=>`<div class="print-label">${l}</div>`).join("");
   renderLabelQRs(area);
   // set @page to the exact label size so each label is its own page
   let st=$("printPageStyle"); if(!st){ st=document.createElement("style"); st.id="printPageStyle"; document.head.appendChild(st); }
@@ -3935,11 +4329,11 @@ function renderArchive(){
 function dl(name,text){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type:"text/csv"})); a.download=name; a.click(); }
 function csvCell(v){ v=(v??"").toString(); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 function exportCSV(){
-  const bh=["batch_no","name","species","scientific","substrate","method","spawn_code","inoc_date","blocks_total","substrate_kg","block_sizes","incubating","fruiting","complete","contaminated","failed","culled","ready_date","total_yield_g","harvest_count","batch_cost","archived","notes"];
-  const brows=batches.map(b=>{const c=batchCounts(b);const sk=substrateKg(b);const bc=batchCost(b);const bsz=blockLines(b)?blockLines(b).map(l=>`${l.count}x${l.kg}kg`).join(" + "):"";return [b.batch_no,b.name,b.species,b.scientific,b.substrate,b.method,b.spawn_code,b.inoc_date,totalBlocks(b),sk??"",bsz,c.incubating,c.fruiting,c.complete,c.contaminated,c.failed,c.culled,b.ready_date||"",batchYield(b),batchHarvestCount(b),bc?bc.cost.toFixed(2):"",b.archived,b.notes].map(csvCell).join(",");});
+  const bh=["batch_id","strain_id","name","species","scientific","substrate","method","spawn_code","inoc_date","blocks_total","substrate_kg","block_sizes","incubating","fruiting","complete","contaminated","failed","culled","ready_date","total_yield_g","harvest_count","batch_cost","archived","notes"];
+  const brows=batches.map(b=>{const c=batchCounts(b);const sk=substrateKg(b);const bc=batchCost(b);const bsz=blockLines(b)?blockLines(b).map(l=>`${l.count}x${l.kg}kg`).join(" + "):"";return [b.batch_code||b.batch_no,b.strain_code||"",b.name,b.species,b.scientific,b.substrate,b.method,b.spawn_code,b.inoc_date,totalBlocks(b),sk??"",bsz,c.incubating,c.fruiting,c.complete,c.contaminated,c.failed,c.culled,b.ready_date||"",batchYield(b),batchHarvestCount(b),bc?bc.cost.toFixed(2):"",b.archived,b.notes].map(csvCell).join(",");});
   dl("batches.csv",[bh.join(","),...brows].join("\n"));
-  const hh=["batch_no","batch_name","species","harvest_date","weight_g","flush","slot","note"];
-  const hrows=harvests.map(h=>{const b=batches.find(x=>x.id===h.batch_id)||{};return [b.batch_no,b.name,b.species,h.harvest_date,h.weight_g,h.flush,h.slot_code||"",h.note].map(csvCell).join(",");});
+  const hh=["batch_id","batch_name","species","harvest_date","weight_g","flush","slot","note"];
+  const hrows=harvests.map(h=>{const b=batches.find(x=>x.id===h.batch_id)||{};return [b.batch_code||b.batch_no,b.name,b.species,h.harvest_date,h.weight_g,h.flush,h.slot_code||"",h.note].map(csvCell).join(",");});
   setTimeout(()=>dl("harvests.csv",[hh.join(","),...hrows].join("\n")),400);
 }
 
@@ -4051,6 +4445,7 @@ function renderAll(){
   if($("view-qr").classList.contains("active")) renderLabels();
   if($("view-room").classList.contains("active")) renderRoom();
   if($("view-roomsetup").classList.contains("active")) renderSetup();
+  if($("view-strains").classList.contains("active")) renderStrains();
 }
 
 let appBooted=false;
