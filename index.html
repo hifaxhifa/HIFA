@@ -617,6 +617,7 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
 .label .ln{color:#333;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .label .lid{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:800;color:#000;line-height:1.1;display:flex;flex-wrap:wrap;align-items:center;gap:2px 5px}
 .label .lid .lcode{white-space:nowrap}
+.label .lnote{margin-top:4px;min-height:1.5em;border-bottom:1px solid #000;color:#000;line-height:1.25;padding-top:.25em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .label .lid .lst{display:inline-block;padding:0 4px;border:1.5px solid #000;border-radius:3px;font-size:.85em;white-space:nowrap}
 .empty{border:1.5px dashed var(--line);border-radius:var(--radius);padding:40px 20px;text-align:center;color:var(--muted)}
 .note-banner{background:#FBF6E8;border:1px solid #EADFBE;border-radius:8px;padding:10px 14px;font-size:13px;color:#6E5E2E;margin-bottom:14px}
@@ -798,7 +799,7 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
   </div>
   <div class="panel no-print">
     <div class="lbl-controls">
-      <div>
+      <div style="display:none">
         <label>Logo</label>
         <div style="display:flex;align-items:center;gap:8px;min-height:40px" id="lb_logoprev"></div>
         <button class="btn btn-sm" style="margin-top:6px" onclick="$('lb_logofile').click()">Upload logo</button>
@@ -811,16 +812,10 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
           <option value="m">Medium (80 × 40 mm)</option>
           <option value="l">Large (100 × 50 mm)</option>
         </select></div>
-      <div><label>Logo size — <span id="lb_logoval">100%</span></label>
+      <div style="display:none"><label>Logo size — <span id="lb_logoval">100%</span></label>
         <input type="range" id="lb_logosize" min="40" max="200" step="10" value="100" oninput="$('lb_logoval').textContent=this.value+'%'" onchange="lblChanged()" style="padding:0"></div>
     </div>
-    <div class="lbl-checks">
-      <label><input type="checkbox" id="lb_f_species" onchange="lblChanged()"> Species</label>
-      <label><input type="checkbox" id="lb_f_scientific" onchange="lblChanged()"> Scientific name</label>
-      <label><input type="checkbox" id="lb_f_inoc" onchange="lblChanged()"> Inoc date</label>
-      <label><input type="checkbox" id="lb_f_spawn" onchange="lblChanged()"> Spawn code</label>
-      <label><input type="checkbox" id="lb_f_substrate" onchange="lblChanged()"> Substrate</label>
-    </div>
+    <div style="margin-top:12px;font-size:13px;color:var(--muted)">Every label shows the Batch/Block ID with the strain code beside it, the spawn code, a space for a note, and the QR.</div>
   </div>
 
   <div class="panel no-print">
@@ -841,6 +836,8 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
       </div>
       <button class="btn btn-primary" onclick="printLabels()">🖨 Print</button>
     </div>
+    <div style="margin-top:10px;max-width:420px"><label>Note (optional)</label>
+      <input id="lb_note" maxlength="40" placeholder="Leave empty for a blank line to write on" oninput="renderLabels()"></div>
     <div style="margin-top:8px;font-size:13px;color:var(--muted)">The printout puts one label per page, sized to your label stock — so the MUNBYN feeds them one at a time. Set printer margins to None and scale 100%.</div>
   </div>
 
@@ -3915,7 +3912,7 @@ async function persistLabelCfg(){
 function lblChanged(){
   labelCfg.size=$("lb_size").value;
   labelCfg.logoScale=parseInt($("lb_logosize").value,10)||100;
-  for(const f of ["species","scientific","inoc","spawn","substrate"]) labelCfg.fields[f]=$("lb_f_"+f).checked;
+  for(const f of ["species","scientific","inoc","spawn","substrate"]){ const el=$("lb_f_"+f); if(el) labelCfg.fields[f]=el.checked; }
   persistLabelCfg(); renderLabels();
 }
 function uploadLogo(e){
@@ -3936,20 +3933,22 @@ function removeLogo(){ labelCfg.logo=null; persistLabelCfg(); renderLabels(); }
 
 function labelHTML(b, unit){
   const sz=LBL_SIZES[labelCfg.size], big=sz.w>=300;
-  const qrSize=Math.min(sz.h-16, Math.round(sz.w*0.42));
-  const baseLogo=big?26:20, logoH=Math.round(baseLogo*(labelCfg.logoScale/100));
+  // small stock: a slightly smaller QR leaves room for the ID and strain
+  // code on one line
+  const qrSize=Math.min(sz.h-16, Math.round(sz.w*(sz.w<250?0.37:0.42)));
+  const idPx = sz.w<225 ? 10.5 : sz.w<250 ? 11 : sz.w<350 ? 15 : 18;
+  // Fixed layout (2026-10): ID + strain code, then inoculation date and
+  // spawn code, then the QR - nothing else, whatever the old per-field
+  // label settings said.
   const lines=[];
-  if(labelCfg.fields.species&&b.species) lines.push(esc(b.species));
-  if(labelCfg.fields.scientific&&b.scientific) lines.push(`<i>${esc(b.scientific)}</i>`);
-  if(labelCfg.fields.inoc) lines.push("Inoc "+fmtDate(b.inoc_date));
-  if(labelCfg.fields.spawn&&b.spawn_code) lines.push(`<span class="mono">${esc(b.spawn_code)}</span>`);
-  if(labelCfg.fields.substrate&&b.substrate) lines.push(esc(b.substrate));
+  if(b.spawn_code) lines.push(`<span class="mono">${esc(b.spawn_code)}</span>`);
+  const note=($("lb_note")?.value||"").trim();
   return `<div class="label" style="width:${sz.w}px;height:${sz.h}px">
       <div class="lmain">
-        ${labelCfg.logo?`<img class="llogo" src="${labelCfg.logo}" alt="" style="max-height:${logoH}px;max-width:${Math.min(90,Math.round(60*labelCfg.logoScale/100))}%">`:""}
-        <div class="lt" style="font-size:${big?11:9}px">
-          <div class="lid" style="font-size:${big?18:13}px"><span class="lcode">${esc(unit?unit.unit_code:batchIdOf(b))}</span>${b.strain_code?`<span class="lst">${esc(b.strain_code)}</span>`:""}</div>
+        <div class="lt" style="font-size:${big?12:10}px">
+          <div class="lid" style="font-size:${idPx}px"><span class="lcode">${esc(unit?unit.unit_code:batchIdOf(b))}</span>${b.strain_code?`<span class="lst">${esc(b.strain_code)}</span>`:""}</div>
           ${lines.map(l=>`<div class="ln">${l}</div>`).join("")}
+          <div class="lnote">${note?esc(note):"&nbsp;"}</div>
         </div>
       </div>
       <div class="lq" data-qr="${esc(unit?unitURL(unit.unit_code):batchURL(b))}" data-qrsize="${qrSize}"></div>
@@ -3978,6 +3977,8 @@ function renderLabels(){
   // preview: one label (the first block in range, in block mode)
   if(chosen && unitsMode){
     fetchUnits(chosen.id).then(units=>{
+      // ignore a late answer if the batch or mode changed meanwhile
+      if($("lb_batch").value!==chosen.id || $("lb_mode").value!=="units") return;
       const act=(units||[]).filter(u=>!u.voided_at);
       if(!act.length){ $("labelSheet").innerHTML=`<div class="empty" style="width:100%">No Block IDs for this batch yet — re-run schema.sql if this batch was created before Block IDs existed.</div>`; return; }
       if(!$("lb_from").value) $("lb_from").value=act[0].unit_no;
