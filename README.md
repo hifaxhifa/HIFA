@@ -18,6 +18,25 @@ Prefer a terminal? `setup.js` does the same schema-push + config-write in
 one command (`npm install && npm run setup`) - entirely optional, same end
 result either way.
 
+## Batch IDs, Block IDs & strains
+
+Every batch gets a **Batch ID** assigned by the database when it's created:
+`AADDD-LL` - 2-digit year + day of the year it was sown + batch number for
+that day (e.g. `26279-02` = second batch sown on 6 Oct 2026). Every block
+gets a **Block ID** built from it: `26279-02-17` = block 17 of that batch.
+Up to 99 batches a day and 99 blocks a batch; IDs never change and block
+numbers are never reused. Each batch can also have a **strain code** ("ID
+Cepa", e.g. `BOCF`) shown next to its ID everywhere - the list lives in the
+`mn_strains` table and is editable in the app under Settings -> Strains.
+
+Block labels (Labels -> "One per block") carry a QR that opens that block;
+in Incubation/Fruiting -> Place -> **Scan blocks**, scanning a block's
+label records exactly which block went into each shelf slot.
+
+Updating an existing install: re-run `schema.sql` in the Supabase SQL Editor
+first. It adds the new tables/columns and gives every existing batch a Batch
+ID from its inoculation date (and Block IDs for its blocks).
+
 ## Analytics
 
 `index.html` and `setup.html` include a small, disclosed, cookie-free visit

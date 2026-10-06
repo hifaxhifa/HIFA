@@ -197,6 +197,7 @@ create extension if not exists pgcrypto;
 
 -- ================= TABLES =================
 -- Hierarchy: mn_rooms -> mn_zones -> mn_bays -> mn_placements -> mn_batches
+-- (mn_strains, mn_units and the Batch/Block ID triggers are near the end)
 
 create table if not exists mn_rooms (
   id uuid primary key default gen_random_uuid(),
@@ -370,6 +371,194 @@ alter table mn_rooms add column if not exists kind text not null default 'fruiti
 -- "species"}) calls to work at all - a unique index reaches an existing
 -- table the way a table-level "unique" declared inline above cannot.
 create unique index if not exists mn_costs_species_key on mn_costs (species);
+
+-- ================= BATCH IDs, BLOCK IDs & STRAINS (2026-10) =================
+-- Batch ID  = AADDD-LL     e.g. 26279-02 (sown 6 Oct 2026, 2nd batch that day)
+-- Block ID  = AADDD-LL-BB  e.g. 26279-02-17 (block 17 of that batch)
+--   AA  = 2-digit year of the inoculation (sowing) date
+--   DDD = day of the year (Julian day, 001-366)
+--   LL  = batch number within that day, 01-99
+--   BB  = block number within the batch, 01-99 (3 digits only for old
+--         batches that already had more than 99 blocks)
+-- The database assigns both - never the browser - so two people creating
+-- batches at the same moment can't get the same ID. Once assigned, a Batch
+-- ID never changes (correcting the inoculation date later keeps it), and
+-- block numbers are never reused.
+
+-- mn_strains: the "ID Cepa" list (strain code -> species/variety/supplier).
+-- Edit it from the app (Settings -> Strains) or straight in this table.
+create table if not exists mn_strains (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  species text not null,
+  variety text,
+  supplier text,
+  notes text,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table mn_batches add column if not exists batch_seq integer;
+alter table mn_batches add column if not exists batch_code text;
+alter table mn_batches add column if not exists strain_code text references mn_strains(code) on update cascade;
+create unique index if not exists mn_batches_batch_code_key on mn_batches (batch_code);
+create index if not exists idx_mn_batches_strain_code on mn_batches(strain_code);
+
+-- mn_units: one row per physical block, numbered within its batch.
+create table if not exists mn_units (
+  id uuid primary key default gen_random_uuid(),
+  batch_id uuid not null references mn_batches(id) on delete cascade,
+  unit_no integer not null,
+  unit_code text not null unique,
+  voided_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (batch_id, unit_no)
+);
+create index if not exists idx_mn_units_batch_id on mn_units(batch_id);
+
+-- which block (scanned) sits in a shelf slot
+alter table mn_placements add column if not exists unit_id uuid references mn_units(id) on delete set null;
+alter table mn_placements add column if not exists unit_code text;
+create index if not exists idx_mn_placements_unit_id on mn_placements(unit_id);
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['mn_strains','mn_units']
+  loop
+    execute format('alter table %I enable row level security', t);
+    execute format('drop policy if exists "authenticated_full_access" on %I', t);
+    execute format(
+      'create policy "authenticated_full_access" on %I for all to authenticated using (true) with check (true)',
+      t
+    );
+  end loop;
+end $$;
+
+create or replace function mn_fmt_seq(n integer) returns text
+language sql immutable as $$
+  select case when n < 100 then lpad(n::text, 2, '0') else n::text end
+$$;
+
+-- New batch: assign batch_no (kept for old QR labels), the per-day
+-- sequence and the Batch ID. One lock serialises concurrent creates.
+create or replace function mn_batch_before_insert() returns trigger
+language plpgsql as $$
+begin
+  perform pg_advisory_xact_lock(hashtext('mn_batches_code'));
+  new.batch_no := coalesce((select max(batch_no) from mn_batches), 0) + 1;
+  new.batch_seq := coalesce((select max(batch_seq) from mn_batches where inoc_date = new.inoc_date), 0) + 1;
+  if new.batch_seq > 99 then
+    raise exception 'There are already 99 batches sown on % (the per-day maximum)', new.inoc_date;
+  end if;
+  new.batch_code := to_char(new.inoc_date, 'YY') || to_char(new.inoc_date, 'DDD') || '-' || mn_fmt_seq(new.batch_seq);
+  return new;
+end $$;
+
+-- IDs are fixed once assigned, even if the batch details are corrected.
+create or replace function mn_batch_before_update() returns trigger
+language plpgsql as $$
+begin
+  new.batch_no := old.batch_no;
+  if old.batch_code is not null then
+    new.batch_code := old.batch_code;
+    new.batch_seq := old.batch_seq;
+  end if;
+  return new;
+end $$;
+
+-- Keep one active block row per block in the batch: adding blocks creates
+-- the next numbers, removing blocks voids the highest unplaced ones.
+-- Numbers are never reused.
+create or replace function mn_sync_units(p_batch uuid) returns void
+language plpgsql as $$
+declare
+  b mn_batches%rowtype;
+  n_active integer;
+  last_no integer;
+begin
+  select * into b from mn_batches where id = p_batch;
+  if b.id is null or b.batch_code is null then return; end if;
+  perform pg_advisory_xact_lock(hashtext('mn_units:' || p_batch::text));
+  select count(*) filter (where voided_at is null), coalesce(max(unit_no), 0)
+    into n_active, last_no from mn_units where batch_id = p_batch;
+  if b.blocks_total > n_active then
+    insert into mn_units (batch_id, unit_no, unit_code)
+      select p_batch, n, b.batch_code || '-' || mn_fmt_seq(n)
+      from generate_series(last_no + 1, last_no + (b.blocks_total - n_active)) n;
+  elsif b.blocks_total < n_active then
+    update mn_units set voided_at = now() where id in (
+      select u.id from mn_units u
+      where u.batch_id = p_batch and u.voided_at is null
+      order by exists (select 1 from mn_placements p where p.unit_id = u.id and p.removed_date is null), u.unit_no desc
+      limit n_active - b.blocks_total);
+  end if;
+end $$;
+
+create or replace function mn_batch_after_write() returns trigger
+language plpgsql as $$
+begin
+  perform mn_sync_units(new.id);
+  return null;
+end $$;
+
+drop trigger if exists mn_batches_assign_code on mn_batches;
+create trigger mn_batches_assign_code before insert on mn_batches
+  for each row execute function mn_batch_before_insert();
+drop trigger if exists mn_batches_lock_code on mn_batches;
+create trigger mn_batches_lock_code before update on mn_batches
+  for each row execute function mn_batch_before_update();
+drop trigger if exists mn_batches_sync_units on mn_batches;
+create trigger mn_batches_sync_units after insert or update of blocks_total, batch_code on mn_batches
+  for each row execute function mn_batch_after_write();
+
+-- Give batches created before this existed a Batch ID from their current
+-- inoculation date (in creation order within each day). Setting batch_code
+-- also creates their block rows via the trigger above. Does nothing for
+-- batches that already have one.
+with base as (
+  select inoc_date, max(batch_seq) as mx from mn_batches where batch_seq is not null group by inoc_date
+), ranked as (
+  select b.id, b.inoc_date,
+    (row_number() over (partition by b.inoc_date order by b.created_at, b.batch_no) + coalesce(base.mx, 0))::integer as seq
+  from mn_batches b left join base on base.inoc_date = b.inoc_date
+  where b.batch_code is null
+)
+update mn_batches b
+  set batch_seq = r.seq,
+      batch_code = to_char(r.inoc_date, 'YY') || to_char(r.inoc_date, 'DDD') || '-' || mn_fmt_seq(r.seq)
+from ranked r
+where b.id = r.id;
+
+-- Starting strain list. Only adds codes that aren't there yet, so edits
+-- made in the app are never overwritten by re-running this file.
+insert into mn_strains (code, species, variety, supplier) values
+  ('PCSK', 'Psilocybe cubensis', 'Shakti', 'Hongos del vecino'),
+  ('PCHB', 'Psilocybe cubensis', 'Hillbilly', 'Hongos del vecino'),
+  ('PCGT', 'Psilocybe cubensis', 'Golden teacher', 'Suplihongos'),
+  ('PCBV', 'Psilocybe cubensis', 'Bluey Vuitton', 'Hongos del vecino'),
+  ('PCCB', 'Psilocybe cubensis', 'Melmac', 'Indigo'),
+  ('HELB', 'Hericium erinaceus', 'MM', 'Cultura Fungi'),
+  ('BOCF', 'Pleorotus ostreatus', 'BO', 'Cultura fungí'),
+  ('POSO', 'Pleurotus ostreatus', 'Summer oyster', 'Ryan'),
+  ('PDRY', 'Pleurotus djamour', 'Sakura', 'Ryan'),
+  ('LECF', 'Lentinula edobes', '5000', 'Cultura fungi'),
+  ('BPKO', 'Pleorotus ostreatus', 'Hybrid', 'Cultura fungi'),
+  ('GSBR', 'Ganoderma sianeses', 'Black reishi', 'Spore n sprout'),
+  ('GMAR', 'Ganoderma multiporium', 'Antler reishi', 'Spore n sprout'),
+  ('CMSS', 'Cordyceps militaris', null, 'Spore n sprout'),
+  ('CMAL', 'Cordyceps militaris', 'Albino', 'Spore n sprout'),
+  ('CMCV', 'Cordyceps militaris', 'Campo Verde', 'Hifa x Hifa'),
+  ('FVGE', 'Flammulina velutipes', 'Golden enoki', 'colombia'),
+  ('TSCV', 'Trametes sanguineus', 'Campo Verde', 'Hifa x Hifa'),
+  ('PPSO', 'Pleurotus pulmonaris', 'Summer oyster', 'Ryan'),
+  ('PSSV', 'Psilocybe subtropicalis', null, 'Ryan'),
+  ('PCSM', 'Psilocybe cubensis', 'Steel magnolia', 'Ryan'),
+  ('PCMM', 'Psilocybe cubensis', 'Melmac OG', 'Ryan'),
+  ('PCCV', 'Psilocybe cubensis', 'Campo Verde', 'Ryan')
+on conflict (code) do nothing;
 `;
 
 const AI_PROMPT = `# Setting up Batch Tracker - a prompt for your AI assistant
