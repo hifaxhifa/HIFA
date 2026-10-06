@@ -17,7 +17,8 @@ create table if not exists mn_rooms (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   sort_order integer not null default 0,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  kind text not null default 'fruiting'
 );
 
 create table if not exists mn_zones (
@@ -190,6 +191,9 @@ end $$;
 -- this is what makes "just re-run schema.sql" a real, working answer for
 -- an existing install, not just a fresh one.
 alter table mn_costs add column if not exists packed_price_block numeric;
+-- mn_rooms.kind: 'fruiting' (default - every room that existed before this
+-- column did is a fruiting room) or 'incubation' (the incubation shelf map).
+alter table mn_rooms add column if not exists kind text not null default 'fruiting';
 -- mn_costs.species needs to be unique for the app's upsert(...,{onConflict:
 -- "species"}) calls to work at all (Postgres's ON CONFLICT requires a real
 -- unique or exclusion constraint on the named column, or it errors outright
