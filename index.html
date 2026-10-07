@@ -618,7 +618,13 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
 .label .lid{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:800;color:#000;line-height:1.1;display:flex;flex-wrap:wrap;align-items:center;gap:2px 5px}
 .label .lid .lcode{white-space:nowrap}
 .label .lnote{margin-top:4px;min-height:1.5em;border-bottom:1px solid #000;color:#000;line-height:1.25;padding-top:.25em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
-.label .lid .lst{display:inline-block;padding:0 4px;border:1.5px solid #000;border-radius:3px;font-size:.85em;white-space:nowrap}
+.label .lid .lst{display:inline-block;padding:1px 4px;background:#000;color:#fff;border-radius:3px;font-weight:900;font-size:.95em;letter-spacing:.3px;white-space:nowrap}
+.label.compact{flex-direction:column;gap:3px;padding:6px}
+.label.compact .lrow{display:flex;gap:6px;flex:1;min-height:0;align-items:stretch}
+.label.compact .lrow .lq{align-self:flex-end}
+.label.compact .lrow .lt{flex:1;min-width:0;justify-content:flex-end;gap:2px}
+.label.compact .llogo{align-self:flex-start;margin-bottom:auto}
+.label.pdf{border:none;border-radius:0}
 .empty{border:1.5px dashed var(--line);border-radius:var(--radius);padding:40px 20px;text-align:center;color:var(--muted)}
 .note-banner{background:#FBF6E8;border:1px solid #EADFBE;border-radius:8px;padding:10px 14px;font-size:13px;color:#6E5E2E;margin-bottom:14px}
 
@@ -744,10 +750,19 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
       <div><label>Batch ID</label><div id="f_code" class="mono" style="padding:10px 0;font-size:16px;font-weight:700"></div></div>
       <div><label>Inoculation date</label><input type="date" id="f_date" oninput="updateCodePreview()"></div>
     </div>
+    <div id="f_strainRow">
+      <label>Strain ID * <a href="#" style="font-weight:400;font-size:12px" onclick="event.preventDefault();openStrains()">manage strains</a></label>
+      <select id="f_strain" onchange="strainPicked()"></select>
+      <div id="f_strainInfo" style="font-size:13px;color:var(--muted);margin-top:4px"></div>
+    </div>
+    <!-- Only used when there's no strain list yet (schema.sql not re-run):
+         with strains, name/species/scientific all come from the strain. -->
+    <div id="f_legacyFields">
     <label>Batch name *</label><input id="f_name" placeholder="e.g. Golden Enoki">
     <div class="row2">
       <div><label>Common name (species) *</label><input id="f_species" list="speciesList" placeholder="e.g. Golden Enoki"></div>
       <div><label>Scientific name</label><input id="f_sci" placeholder="e.g. Flammulina velutipes"></div>
+    </div>
     </div>
     <datalist id="speciesList"></datalist>
     <div class="row2">
@@ -756,8 +771,8 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
     </div>
     <datalist id="subList"></datalist>
     <div class="row2">
-      <div><label>Strain ID <a href="#" style="font-weight:400;font-size:12px" onclick="event.preventDefault();openStrains()">manage strains</a></label><select id="f_strain" onchange="strainPicked()"></select></div>
       <div><label>Spawn code</label><input id="f_spawn" placeholder="e.g. FV6924SO31"></div>
+      <div></div>
     </div>
     <label>Blocks *</label>
     <div id="staticInfo_blockLines"></div>
@@ -799,7 +814,7 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
   </div>
   <div class="panel no-print">
     <div class="lbl-controls">
-      <div style="display:none">
+      <div>
         <label>Logo</label>
         <div style="display:flex;align-items:center;gap:8px;min-height:40px" id="lb_logoprev"></div>
         <button class="btn btn-sm" style="margin-top:6px" onclick="$('lb_logofile').click()">Upload logo</button>
@@ -808,14 +823,15 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
       <div><label>Label size</label>
         <select id="lb_size" onchange="lblChanged()">
           <option value="munbyn">MUNBYN 2.25 × 1.25 in (57 × 32 mm)</option>
+          <option value="x4030">40 × 30 mm</option>
           <option value="s">Small (60 × 30 mm)</option>
           <option value="m">Medium (80 × 40 mm)</option>
           <option value="l">Large (100 × 50 mm)</option>
         </select></div>
-      <div style="display:none"><label>Logo size — <span id="lb_logoval">100%</span></label>
+      <div><label>Logo size — <span id="lb_logoval">100%</span></label>
         <input type="range" id="lb_logosize" min="40" max="200" step="10" value="100" oninput="$('lb_logoval').textContent=this.value+'%'" onchange="lblChanged()" style="padding:0"></div>
     </div>
-    <div style="margin-top:12px;font-size:13px;color:var(--muted)">Every label shows the Batch/Block ID with the strain code beside it, the spawn code, a space for a note, and the QR.</div>
+    <div style="margin-top:12px;font-size:13px;color:var(--muted)">Every label shows your logo (if uploaded), the Batch/Block ID with the strain code beside it, the spawn code, a space for a note, and the QR.</div>
   </div>
 
   <div class="panel no-print">
@@ -835,6 +851,7 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
         <div style="width:80px"><label>to</label><input type="number" id="lb_to" min="1" onchange="renderLabels()"></div>
       </div>
       <button class="btn btn-primary" onclick="printLabels()">🖨 Print</button>
+      <button class="btn" id="lb_pdfBtn" onclick="downloadLabelsPDF()">⬇ PDF</button>
     </div>
     <div style="margin-top:10px;max-width:420px"><label>Note (optional)</label>
       <input id="lb_note" maxlength="40" placeholder="Leave empty for a blank line to write on" oninput="renderLabels()"></div>
@@ -1236,6 +1253,11 @@ const batchIdOf = b => b ? (b.batch_code || "#"+b.batch_no) : "?";
 const batchTagText = b => batchIdOf(b)+(b?.strain_code?" · "+b.strain_code:"");
 const batchTagHTML = b => `<span class="bno mono">${esc(batchIdOf(b))}</span>${b?.strain_code?` <span class="strain-tag mono">${esc(b.strain_code)}</span>`:""}`;
 const strainOf = b => b?.strain_code ? strains.find(s=>s.code===b.strain_code) : null;
+// A strain's display name is its variety (the common name it's grown
+// under, e.g. "Shakti"), falling back to the species when it has none.
+const strainLabel = s => (s?.variety||"").trim() || s?.species || "";
+const strainOptionsHTML = keepCode => `<option value="">— choose a strain —</option>`+strains.filter(s=>s.active!==false||s.code===keepCode)
+  .map(s=>`<option value="${esc(s.code)}">${esc(s.code)} — ${esc(strainLabel(s))}${s.variety?` (${esc(s.species)})`:""}${s.supplier?` · ${esc(s.supplier)}`:""}</option>`).join("");
 const unitURL = code => location.origin+location.pathname+"?u="+encodeURIComponent(code);
 // Accepts a Batch/Block ID typed or scanned any reasonable way: with or
 // without dashes ("26279-02-17", "262790217", " 26279 02 17 "), or a full
@@ -2173,7 +2195,7 @@ function cardHTML(b){
       ${pinwheelHTML(b)}
       <div class="card-head-text">
         <h3>${esc(b.name)} ${batchTagHTML(b)}</h3>
-        <div class="species">${esc(b.species)}${b.spawn_code?` · <span class="mono">${esc(b.spawn_code)}</span>`:""}</div>
+        <div class="species">${b.strain_code&&b.scientific&&b.name===b.species?`<i>${esc(b.scientific)}</i>`:esc(b.species)}${b.spawn_code?` · <span class="mono">${esc(b.spawn_code)}</span>`:""}</div>
       </div>
     </div>
     ${miniGrid(b)}
@@ -2311,8 +2333,11 @@ function closeStrains(){
   if(strainsReturnView==="form"){
     // keep whatever was typed in the batch form, just refresh its strain list
     const keep=$("f_strain").value, b=editingId?batches.find(x=>x.id===editingId):null;
-    $("f_strain").innerHTML=`<option value="">— none —</option>`+strains.filter(s=>s.active!==false||s.code===b?.strain_code).map(s=>`<option value="${esc(s.code)}">${esc(s.code)} — ${esc(s.species)}${s.variety?` · ${esc(s.variety)}`:""}${s.supplier?` (${esc(s.supplier)})`:""}</option>`).join("");
+    $("f_strain").innerHTML=strainOptionsHTML(b?.strain_code);
     $("f_strain").value=keep;
+    $("f_strainRow").style.display = strains.length ? "" : "none";
+    $("f_legacyFields").style.display = strains.length ? "none" : "";
+    strainPicked();
     showView("form",false); return;
   }
   if(strainsReturnView==="batch" && currentBatchId){ openBatch(currentBatchId,false); return; }
@@ -2355,7 +2380,12 @@ async function saveStrain(id){
   const old=strains.find(s=>s.id===id);
   const n=batches.filter(b=>b.strain_code===old?.code).length;
   if(old && old.code!==code && n && !confirm(`Rename ${old.code} to ${code}? ${n} batch${n===1?"":"es"} will show the new code. Labels already printed keep the old one.`)) return;
-  if(await write(db.from("mn_strains").update(rec).eq("id",id),"Couldn't save strain (is that ID already used?)")) renderStrains();
+  if(!await write(db.from("mn_strains").update(rec).eq("id",id),"Couldn't save strain (is that ID already used?)")) return;
+  // keep the batches grown from it showing its current name
+  const label=(rec.variety||"").trim()||rec.species;
+  if(old && (strainLabel(old)!==label || old.species!==rec.species) && batches.some(b=>b.strain_code===code))
+    await write(db.from("mn_batches").update({name:label, species:label, scientific:rec.species}).eq("strain_code",code),"Saved the strain, but couldn't update its batches' names");
+  renderStrains();
 }
 async function deleteStrain(id){
   const s=strains.find(x=>x.id===id); if(!s) return;
@@ -2373,9 +2403,11 @@ function openForm(id){
   const b = id ? batches.find(x=>x.id===id) : null;
   $("f_id").value=b?.id||"";
   $("f_date").value=b?.inoc_date||todayISO();
-  const act=strains.filter(s=>s.active!==false || s.code===b?.strain_code);
-  $("f_strain").innerHTML=`<option value="">— none —</option>`+act.map(s=>`<option value="${esc(s.code)}">${esc(s.code)} — ${esc(s.species)}${s.variety?` · ${esc(s.variety)}`:""}${s.supplier?` (${esc(s.supplier)})`:""}</option>`).join("");
+  $("f_strain").innerHTML=strainOptionsHTML(b?.strain_code);
   $("f_strain").value=b?.strain_code||"";
+  $("f_strainRow").style.display = strains.length ? "" : "none";
+  $("f_legacyFields").style.display = strains.length ? "none" : "";
+  strainPicked();
   updateCodePreview();
   $("f_name").value=b?.name||"";
   $("f_species").value=b?.species||"";
@@ -2449,7 +2481,7 @@ function updateCodePreview(){
 }
 function strainPicked(){
   const s=strains.find(x=>x.code===$("f_strain").value);
-  if(s && !$("f_sci").value.trim()) $("f_sci").value=s.species;
+  $("f_strainInfo").innerHTML = s ? `<b style="color:var(--ink)">${esc(strainLabel(s))}</b> · <i>${esc(s.species)}</i>${s.supplier?` · ${esc(s.supplier)}`:""}` : "";
 }
 function renderBlockLines(){
   $("blockLines").innerHTML = blockLineState.map((l,i)=>`
@@ -2471,16 +2503,20 @@ function updateBlockTotal(){
 }
 function cancelForm(){ editingId ? openBatch(editingId) : showView("pipeline"); }
 async function saveBatch(){
-  const name=$("f_name").value.trim(), species=$("f_species").value.trim();
+  // With a strain list, the batch's name, common name (its variety) and
+  // scientific name all come from the chosen strain.
+  const strain=strains.length ? strains.find(x=>x.code===$("f_strain").value) : null;
+  if(strains.length && !strain){ alert("Choose the batch's Strain ID."); return; }
+  const name=strain?strainLabel(strain):$("f_name").value.trim(), species=strain?strainLabel(strain):$("f_species").value.trim();
   const lines=blockLineState.map(l=>({count:parseInt(l.count,10)||0,kg:parseFloat(l.kg)||0})).filter(l=>l.count>0);
   const blocks=lines.reduce((s,l)=>s+l.count,0);
-  if(!name||!species){ alert("Batch name and species are required."); return; }
+  if(!name||!species){ alert(strain?"That strain has no species or variety - fix it under Strains.":"Batch name and species are required."); return; }
   if(!blocks){ alert("Add at least one block size with a count."); return; }
   const prev=editingId?batches.find(x=>x.id===editingId):null;
   if(blocks>99 && (!prev || prev.blocks_total<blocks) && (!prev || prev.blocks_total<=99)){ alert("A batch can have up to 99 blocks (Block IDs run 01-99). Split it into two batches."); return; }
   const rec={
     name, species, strain_code:$("f_strain").value||null,
-    scientific:$("f_sci").value.trim()||null, substrate:$("f_substrate").value.trim()||null,
+    scientific:(strain?strain.species:$("f_sci").value.trim())||null, substrate:$("f_substrate").value.trim()||null,
     method:$("f_method").value.trim()||null, spawn_code:$("f_spawn").value.trim()||null,
     inoc_date:$("f_date").value||todayISO(), blocks_total:blocks,
     block_sizes:lines.length?lines:null, notes:$("f_notes").value.trim()||null
@@ -3781,7 +3817,10 @@ async function seedRoom(){
 }
 
 
-const LBL_SIZES={munbyn:{w:216,h:120},s:{w:227,h:113},m:{w:302,h:151},l:{w:378,h:189}}; /* px at 96dpi */
+/* Label stock sizes in mm (what the PDF page and print @page use); w/h are
+   the same size in CSS px at 96dpi for the on-screen preview. */
+const LBL_SIZES=Object.fromEntries(Object.entries({munbyn:[57.15,31.75], x4030:[40,30], s:[60,30], m:[80,40], l:[100,50]})
+  .map(([k,[wm,hm]])=>[k,{mm:[wm,hm], w:Math.round(wm*96/25.4), h:Math.round(hm*96/25.4)}]));
 let labelCfg={size:"munbyn",copies:1,logo:null,logoScale:100,fields:{species:false,scientific:false,inoc:true,spawn:true,substrate:false}};
 // Flat $/block for the "packed" state (2026-09-01, Adam's ask) - grow kits
 // are sold as a whole unit, not by weight, so there's no dryKg/yield to
@@ -3932,26 +3971,28 @@ function uploadLogo(e){
 function removeLogo(){ labelCfg.logo=null; persistLabelCfg(); renderLabels(); }
 
 function labelHTML(b, unit){
-  const sz=LBL_SIZES[labelCfg.size], big=sz.w>=300;
-  // small stock: a slightly smaller QR leaves room for the ID and strain
-  // code on one line
-  const qrSize=Math.min(sz.h-16, Math.round(sz.w*(sz.w<250?0.37:0.42)));
-  const idPx = sz.w<225 ? 10.5 : sz.w<250 ? 11 : sz.w<350 ? 15 : 18;
-  // Fixed layout (2026-10): ID + strain code, then inoculation date and
-  // spawn code, then the QR - nothing else, whatever the old per-field
-  // label settings said.
-  const lines=[];
-  if(b.spawn_code) lines.push(`<span class="mono">${esc(b.spawn_code)}</span>`);
+  const sz=LBL_SIZES[labelCfg.size]||LBL_SIZES.munbyn, big=sz.w>=300;
+  // 40×30 is too narrow for text and QR side by side under a full-width
+  // ID, so it stacks: ID + strain on top, details and QR underneath.
+  const compact=sz.w<170;
+  const qrSize = compact ? Math.round(sz.h*0.56) : Math.min(sz.h-16, Math.round(sz.w*(sz.w<250?0.34:sz.w<350?0.4:0.42)));
+  const idPx = compact ? 10.5 : sz.w<225 ? 10.5 : sz.w<250 ? 11 : sz.w<350 ? 14 : 18;
+  const baseLogo=compact?14:big?26:20, logoH=Math.round(baseLogo*(labelCfg.logoScale/100));
   const note=($("lb_note")?.value||"").trim();
+  const logo = labelCfg.logo ? `<img class="llogo" src="${labelCfg.logo}" alt="" style="max-height:${logoH}px;max-width:${Math.min(90,Math.round(60*labelCfg.logoScale/100))}%">` : "";
+  const id = `<div class="lid" style="font-size:${idPx}px"><span class="lcode">${esc(unit?unit.unit_code:batchIdOf(b))}</span>${b.strain_code?`<span class="lst">${esc(b.strain_code)}</span>`:""}</div>`;
+  const details = `${b.spawn_code?`<div class="ln"><span class="mono">${esc(b.spawn_code)}</span></div>`:""}<div class="lnote">${note?esc(note):"&nbsp;"}</div>`;
+  const qr = `<div class="lq" data-qr="${esc(unit?unitURL(unit.unit_code):batchURL(b))}" data-qrsize="${qrSize}"></div>`;
+  if(compact) return `<div class="label compact" style="width:${sz.w}px;height:${sz.h}px">
+      ${id}
+      <div class="lrow"><div class="lt" style="font-size:9px">${logo}${details}</div>${qr}</div>
+    </div>`;
   return `<div class="label" style="width:${sz.w}px;height:${sz.h}px">
       <div class="lmain">
-        <div class="lt" style="font-size:${big?12:10}px">
-          <div class="lid" style="font-size:${idPx}px"><span class="lcode">${esc(unit?unit.unit_code:batchIdOf(b))}</span>${b.strain_code?`<span class="lst">${esc(b.strain_code)}</span>`:""}</div>
-          ${lines.map(l=>`<div class="ln">${l}</div>`).join("")}
-          <div class="lnote">${note?esc(note):"&nbsp;"}</div>
-        </div>
+        ${logo}
+        <div class="lt" style="font-size:${big?12:10}px">${id}${details}</div>
       </div>
-      <div class="lq" data-qr="${esc(unit?unitURL(unit.unit_code):batchURL(b))}" data-qrsize="${qrSize}"></div>
+      ${qr}
     </div>`;
 }
 function renderLabels(){
@@ -4012,21 +4053,25 @@ function printUnitLabels(batchId){
   labelPreselect=batchId; $("lb_mode").value="units"; $("lb_from").value=""; $("lb_to").value="";
   renderLabels(); showView("qr");
 }
-async function printLabels(){
+// The labels the current settings would print (batch label copies, or one
+// per block in the chosen range), as HTML.
+async function currentLabelList(){
   const b=batches.find(x=>x.id===$("lb_batch").value);
-  if(!b){ alert("Pick a batch to print."); return; }
-  let labels;
+  if(!b){ alert("Pick a batch first."); return null; }
   if($("lb_mode").value==="units" && b.batch_code){
     const units=await fetchUnits(b.id);
     const sel=unitsInRange((units||[]).filter(u=>!u.voided_at));
-    if(!sel.length){ alert("No blocks in that range to print."); return; }
-    labels=sel.map(u=>labelHTML(b,u));
-  } else {
-    const copies=Math.max(1,parseInt($("lb_copies").value,10)||1);
-    labels=Array.from({length:copies}).map(()=>labelHTML(b));
+    if(!sel.length){ alert("No blocks in that range."); return null; }
+    return {b, labels:sel.map(u=>labelHTML(b,u)), name:`${b.batch_code}-${fmtSeq(sel[0].unit_no)}_to_${fmtSeq(sel[sel.length-1].unit_no)}`};
   }
-  const sz=LBL_SIZES[labelCfg.size];
-  const wmm=(sz.w/96*25.4).toFixed(1), hmm=(sz.h/96*25.4).toFixed(1);
+  const copies=Math.max(1,parseInt($("lb_copies").value,10)||1);
+  return {b, labels:Array.from({length:copies}).map(()=>labelHTML(b)), name:batchIdOf(b).replace("#","batch-")};
+}
+async function printLabels(){
+  const list=await currentLabelList(); if(!list) return;
+  const labels=list.labels;
+  const sz=LBL_SIZES[labelCfg.size]||LBL_SIZES.munbyn;
+  const [wmm,hmm]=sz.mm;
   // build a dedicated print area: one label per page
   let area=$("printArea");
   if(!area){ area=document.createElement("div"); area.id="printArea"; document.body.appendChild(area); }
@@ -4039,6 +4084,47 @@ async function printLabels(){
   setTimeout(()=>{ window.print(); }, 60);
 }
 window.addEventListener("afterprint",()=>{ document.body.classList.remove("printing-labels"); });
+
+/* PDF download (2026-10): one page per label, each page exactly the
+   chosen label size in mm, so it prints 1:1 from any PDF viewer or a
+   printer's own app (set scale to 100% / "actual size"). Each label is
+   rendered from the same HTML as the preview by html2canvas at ~12 px/mm
+   and placed full-page with jsPDF - both loaded only when first needed. */
+const libPromises={};
+function loadScriptOnce(src){
+  return libPromises[src] || (libPromises[src]=new Promise((res,rej)=>{
+    const el=document.createElement("script"); el.src=src; el.onload=res;
+    el.onerror=()=>{ delete libPromises[src]; rej(new Error("Couldn't load "+src)); };
+    document.head.appendChild(el);
+  }));
+}
+async function downloadLabelsPDF(){
+  const list=await currentLabelList(); if(!list) return;
+  const btn=$("lb_pdfBtn"), was=btn.textContent;
+  btn.disabled=true; btn.textContent="Preparing…";
+  const host=document.createElement("div");
+  host.style.cssText="position:fixed;left:-10000px;top:0;background:#fff";
+  document.body.appendChild(host);
+  try{
+    await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+    await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+    const sz=LBL_SIZES[labelCfg.size]||LBL_SIZES.munbyn, [wmm,hmm]=sz.mm;
+    const orientation = wmm>=hmm ? "landscape" : "portrait";
+    const doc=new window.jspdf.jsPDF({orientation, unit:"mm", format:[wmm,hmm]});
+    for(let i=0;i<list.labels.length;i++){
+      btn.textContent=`Preparing ${i+1}/${list.labels.length}…`;
+      host.innerHTML=list.labels[i];
+      const el=host.firstElementChild; el.classList.add("pdf");
+      renderLabelQRs(host);
+      await new Promise(r=>setTimeout(r,30));
+      const canvas=await html2canvas(el,{scale:12*25.4/96, backgroundColor:"#ffffff", logging:false});
+      if(i>0) doc.addPage([wmm,hmm], orientation);
+      doc.addImage(canvas.toDataURL("image/png"),"PNG",0,0,wmm,hmm);
+    }
+    doc.save(`labels_${list.name}_${wmm}x${hmm}mm.pdf`);
+  }catch(e){ console.error(e); alert("Couldn't make the PDF - check your internet connection and try again.\n\n"+e.message); }
+  finally{ host.remove(); btn.disabled=false; btn.textContent=was; }
+}
 
 /* ================= ANALYTICS ================= */
 let analyticsView = localStorage.getItem("mn_analyticsview")||"completed"; // "completed" | "lifetime"
