@@ -559,6 +559,125 @@ insert into mn_strains (code, species, variety, supplier) values
   ('PCMM', 'Psilocybe cubensis', 'Melmac OG', 'Ryan'),
   ('PCCV', 'Psilocybe cubensis', 'Campo Verde', 'Ryan')
 on conflict (code) do nothing;
+
+-- ================= SPAWN (grain spawn bags) - 2026-10 =================
+-- A spawn batch is an mn_batches row with kind = 'spawn'; its bags are
+-- mn_units rows like blocks are, numbered the same way (26282-01-07), with
+-- the same strain list and the same incubation rooms. Spawn has no
+-- fruiting stage: each bag goes incubating -> ready -> used / sold, or is
+-- lost (contaminated / failed / culled). Unlike blocks, each bag's state is
+-- kept on the bag itself (mn_units.state).
+-- A batch made from a spawn bag (blocks, or the next spawn generation)
+-- points at it with source_unit_id; one bag inoculates one batch.
+alter table mn_batches add column if not exists kind text not null default 'block';
+alter table mn_batches add column if not exists generation integer;
+alter table mn_batches add column if not exists source_unit_id uuid references mn_units(id) on delete set null;
+alter table mn_batches add column if not exists source_batch_id uuid references mn_batches(id) on delete set null;
+create unique index if not exists mn_batches_source_unit_key on mn_batches (source_unit_id) where source_unit_id is not null;
+create index if not exists idx_mn_batches_source_batch_id on mn_batches(source_batch_id);
+
+alter table mn_units add column if not exists state text;
+alter table mn_units add column if not exists state_date date;
+alter table mn_units add column if not exists used_in_batch_id uuid references mn_batches(id) on delete set null;
+create index if not exists idx_mn_units_used_in_batch_id on mn_units(used_in_batch_id);
+
+-- days a spawn bag of this strain takes to colonise (the "should be ready" alert)
+alter table mn_strains add column if not exists spawn_ready_days integer;
+
+-- mn_grains: spawn cost per bag, by grain (wheat, sorghum, millet...).
+-- A bag costs kg_per_bag x cost_per_kg + bag_cost + other_cost; a G2+ bag
+-- also carries its share of the bag it was made from.
+create table if not exists mn_grains (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  cost_per_kg numeric not null default 0,
+  kg_per_bag numeric not null default 1,
+  bag_cost numeric not null default 0,
+  other_cost numeric not null default 0,
+  sale_price_bag numeric,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+do $$
+begin
+  execute 'alter table mn_grains enable row level security';
+  execute 'drop policy if exists "authenticated_full_access" on mn_grains';
+  execute 'create policy "authenticated_full_access" on mn_grains for all to authenticated using (true) with check (true)';
+end $$;
+
+-- Claiming a spawn bag: checked and recorded in the same transaction as
+-- the batch itself, so a bag can never end up "used" without its batch or
+-- used by two batches. The new batch takes the bag's strain, and a spawn
+-- batch made from a bag is one generation on from it.
+create or replace function mn_batch_source_check() returns trigger
+language plpgsql as $$
+declare
+  u mn_units%rowtype;
+  sb mn_batches%rowtype;
+begin
+  if new.kind = 'spawn' and new.source_unit_id is null then
+    new.generation := coalesce(new.generation, 1);
+  end if;
+  if new.source_unit_id is null then
+    new.source_batch_id := null;
+    return new;
+  end if;
+  if tg_op = 'UPDATE' and new.source_unit_id is not distinct from old.source_unit_id then
+    return new;
+  end if;
+  select * into u from mn_units where id = new.source_unit_id for update;
+  if u.id is null then
+    raise exception 'That spawn bag does not exist';
+  end if;
+  select * into sb from mn_batches where id = u.batch_id;
+  if sb.kind is distinct from 'spawn' then
+    raise exception '% is a block, not a spawn bag', u.unit_code;
+  end if;
+  if u.voided_at is not null or coalesce(u.state, 'incubating') not in ('incubating', 'ready')
+     or (u.used_in_batch_id is not null and (tg_op = 'INSERT' or u.used_in_batch_id <> new.id)) then
+    raise exception 'Spawn bag % is not available (%)', u.unit_code, coalesce(u.state, 'incubating');
+  end if;
+  new.source_batch_id := sb.id;
+  new.strain_code := sb.strain_code;
+  if new.kind = 'spawn' then
+    new.generation := coalesce(sb.generation, 1) + 1;
+  end if;
+  return new;
+end $$;
+
+create or replace function mn_batch_source_mark() returns trigger
+language plpgsql as $$
+begin
+  if tg_op = 'UPDATE' and old.source_unit_id is not null and old.source_unit_id is distinct from new.source_unit_id then
+    update mn_units set state = 'ready', state_date = current_date, used_in_batch_id = null
+      where id = old.source_unit_id and used_in_batch_id = new.id;
+  end if;
+  if new.source_unit_id is not null and (tg_op = 'INSERT' or old.source_unit_id is distinct from new.source_unit_id) then
+    update mn_units set state = 'used', state_date = new.inoc_date, used_in_batch_id = new.id
+      where id = new.source_unit_id;
+  end if;
+  return null;
+end $$;
+
+-- deleting a batch hands its spawn bag back (ready again)
+create or replace function mn_batch_source_release() returns trigger
+language plpgsql as $$
+begin
+  update mn_units set state = 'ready', state_date = current_date, used_in_batch_id = null
+    where used_in_batch_id = old.id;
+  return old;
+end $$;
+
+drop trigger if exists mn_batches_source_check on mn_batches;
+create trigger mn_batches_source_check before insert or update on mn_batches
+  for each row execute function mn_batch_source_check();
+drop trigger if exists mn_batches_source_mark on mn_batches;
+create trigger mn_batches_source_mark after insert or update of source_unit_id on mn_batches
+  for each row execute function mn_batch_source_mark();
+drop trigger if exists mn_batches_source_release on mn_batches;
+create trigger mn_batches_source_release before delete on mn_batches
+  for each row execute function mn_batch_source_release();
 `;
 
 const AI_PROMPT = `# Setting up Batch Tracker - a prompt for your AI assistant

@@ -37,6 +37,27 @@ Updating an existing install: re-run `schema.sql` in the Supabase SQL Editor
 first. It adds the new tables/columns and gives every existing batch a Batch
 ID from its inoculation date (and Block IDs for its blocks).
 
+## Spawn (grain spawn bags)
+
+Pipeline -> **Spawn** tracks spawn batches the same way as blocks (same IDs,
+strains, labels and incubation shelves) but bag by bag: incubating -> ready
+-> used / sold, or lost. A bag becomes "used" by itself when its ID is
+entered on a new batch (blocks, or the next spawn generation - G2, G3...),
+and that batch takes the bag's strain and cost. Spawn cost per bag is set by
+grain under Costs -> Spawn; the "should be ready" alert uses each strain's
+"Spawn ready (days)" under Settings -> Strains. Bought spawn: leave the bag
+field empty and type its code under Spawn code.
+
+## Data and the free Supabase plan
+
+The app reads every table in pages of 1000 rows (Supabase's per-request
+cap), re-reads only the table a save touched, keeps its offline copy in
+IndexedDB, and loads archived batches' shelf history only when it's needed.
+A busy year (~400 blocks + 100 spawn bags a week) is roughly 40 MB of the
+free plan's 500 MB. Free projects pause after 7 days without use (data is
+kept; restore it from the Supabase dashboard) and have no downloadable
+backups - export your tables now and then, or move to Pro for daily backups.
+
 ## Analytics
 
 `index.html` and `setup.html` include a small, disclosed, cookie-free visit
