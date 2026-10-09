@@ -67,6 +67,7 @@
      loss states. */
   --st-incubating:#4A4A4C; --st-ready:#B8E8E8; --st-fruiting:#3FA35C; --st-complete:#3E7CB8;
   --st-contaminated:#C23B3B; --st-failed:#FFB84D; --st-culled:#423D36; --st-packed:#8B5FA3;
+  --st-sold:#C9A227;
   --slot-empty-bg:#FBFAF6; --slot-empty-ink:#C4BCAC; --slot-place-bg:#EFF3EF;
   --radius:10px; --shadow:0 1px 3px rgba(42,36,27,.08);
   /* Rebrand foundation (2026-08-25) - "two-tone duotone" retro palette,
@@ -364,6 +365,21 @@ th .info-dot{margin-left:5px}
 .card .stats{display:flex;gap:14px;font-size:13px;margin-top:8px;flex-wrap:wrap}
 .card .stats b{font-weight:600}
 .bno{color:var(--muted);font-size:13px}
+.spawn-tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.6px;padding:1px 6px;border-radius:5px;border:1.5px solid #8A6A12;color:#8A6A12;background:#FFF6D6;vertical-align:middle}
+.ubags{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 2px}
+.ub{min-width:24px;height:24px;padding:0 3px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;color:#fff;font-family:"IBM Plex Mono",monospace;user-select:none}
+.ub.big{min-width:40px;height:40px;font-size:13px;border-radius:7px;cursor:pointer}
+.ub.incubating{background:var(--st-incubating)} .ub.ready{background:var(--st-ready);color:#1d3a3a} .ub.used{background:var(--st-complete)} .ub.sold{background:var(--st-sold);color:#2a1f00}
+.ub.contaminated{background:var(--st-contaminated)} .ub.failed{background:var(--st-failed);color:#3a2600} .ub.culled{background:var(--st-culled)}
+.ub.sel{outline:3px solid #E07A2E;outline-offset:1px} .ub.hl{box-shadow:0 0 0 3px var(--accent)} .ub.used.big{cursor:default}
+.spawn-alert{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;font-weight:700;color:#8A5A00;background:#FFF1D0;border:1px solid #F1D58A;border-radius:7px;padding:4px 8px;margin-top:8px}
+.spawn-bar{margin-top:14px;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.spawn-bar .btn{box-shadow:none}
+.slot.seed{background:#C7A54B !important;color:#2a1f00 !important;outline:2px solid #8A6A12;outline-offset:-2px}
+.slot.seed::before{content:"SPAWN";position:absolute;top:2px;left:3px;font-size:6.5px;font-weight:900;letter-spacing:.3px}
+.slot.seed-due{box-shadow:0 0 0 3px #F1B73A}
+.legend-row{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--muted);margin:10px 2px 0}
+.legend-row i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
 .strain-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.5px;padding:1px 6px;border-radius:5px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);vertical-align:middle}
 .id-chip{font-size:13px;font-weight:700}
 .form-locked input:disabled,.form-locked select:disabled,.form-locked textarea:disabled{opacity:.75;cursor:not-allowed}
@@ -617,6 +633,7 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
 .label .ln{color:#333;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .label .lid{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:800;color:#000;line-height:1.1;display:flex;flex-wrap:wrap;align-items:center;gap:2px 5px}
 .label .lid .lcode{white-space:nowrap}
+.label .lsem{display:inline-block;border:1.5px solid #000;border-radius:3px;padding:0 4px;font-size:.85em;font-weight:900;letter-spacing:.5px;margin-right:4px}
 .label .lnote{margin-top:4px;min-height:1.5em;border-bottom:1px solid #000;color:#000;line-height:1.25;padding-top:.25em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .label .lid .lst{display:inline-block;padding:1px 4px;background:#000;color:#fff;border-radius:3px;font-weight:900;font-size:.95em;letter-spacing:.3px;white-space:nowrap}
 .label.compact{flex-direction:column;gap:3px;padding:6px}
@@ -696,12 +713,14 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
 <!-- PIPELINE -->
 <section class="view active" id="view-pipeline">
   <div class="toolbar">
-    <button class="btn btn-primary" onclick="openForm()">＋ New batch</button>
+    <div class="seg" id="pipeKindSeg"><button data-k="block" onclick="setPipelineKind('block')">Blocks</button><button data-k="spawn" onclick="setPipelineKind('spawn')">Spawn</button></div>
+    <button class="btn btn-primary" id="newBatchBtn" onclick="openForm(null, pipelineKind)">＋ New batch</button>
     <input class="search" id="search" placeholder="Search name, species, substrate, spawn code…" oninput="renderPipeline()">
     <div class="spacer"></div>
     <button class="btn btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
   </div>
   <div class="rail" id="pipeline"></div>
+  <div id="pipelineLegend"></div>
 </section>
 
 <!-- BATCH DETAIL -->
@@ -750,6 +769,15 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
       <div><label>Batch ID</label><div id="f_code" class="mono" style="padding:10px 0;font-size:16px;font-weight:700"></div></div>
       <div><label>Inoculation date</label><input type="date" id="f_date" oninput="updateCodePreview()"></div>
     </div>
+    <div id="f_originRow" style="display:none">
+      <label>Made from</label>
+      <div class="seg" id="f_originSeg" style="display:flex"><button data-o="culture" style="flex:1" onclick="setFormOrigin('culture')">Mother culture (plate / liquid)</button><button data-o="bag" style="flex:1" onclick="setFormOrigin('bag')">Another spawn bag</button></div>
+    </div>
+    <div id="f_srcRow">
+      <label id="f_srcLabel">Spawn bag used</label>
+      <div style="display:flex;gap:8px"><input id="f_src" class="mono" autocomplete="off" placeholder="Scan or type the bag ID, e.g. 26275-01-03" onchange="resolveFormSource()" style="flex:1"><button class="btn" type="button" onclick="scanFormSource()" title="Scan the bag's label">📷</button></div>
+      <div id="f_srcInfo" style="font-size:13px;margin-top:4px;color:var(--muted)"></div>
+    </div>
     <div id="f_strainRow">
       <label>Strain ID * <a href="#" style="font-weight:400;font-size:12px" onclick="event.preventDefault();openStrains()">manage strains</a></label>
       <select id="f_strain" onchange="strainPicked()"></select>
@@ -766,19 +794,21 @@ td.neg{color:var(--danger);font-weight:700} td.pos{color:var(--st-complete);font
     </div>
     <datalist id="speciesList"></datalist>
     <div class="row2">
-      <div><label>Substrate</label><input id="f_substrate" list="subList" placeholder="e.g. Master's mix"></div>
-      <div><label>Method</label><input id="f_method" placeholder="e.g. Bags"></div>
+      <div><label id="f_subLabel">Substrate</label><input id="f_substrate" list="subList" placeholder="e.g. Master's mix" oninput="updateSpawnCostPreview()"></div>
+      <div id="f_methodWrap"><label>Method</label><input id="f_method" placeholder="e.g. Bags"></div>
     </div>
     <datalist id="subList"></datalist>
-    <div class="row2">
-      <div><label>Spawn code</label><input id="f_spawn" placeholder="e.g. FV6924SO31"></div>
+    <datalist id="grainList"></datalist>
+    <div class="row2" id="f_spawnCodeRow">
+      <div><label id="f_spawnLabel">Spawn code</label><input id="f_spawn" placeholder="e.g. FV6924SO31"></div>
       <div></div>
     </div>
-    <label>Blocks *</label>
+    <label id="f_blocksLabel">Blocks *</label>
     <div id="staticInfo_blockLines"></div>
     <div id="blockLines"></div>
     <button class="btn btn-sm" style="margin-top:4px" onclick="addBlockLine()">＋ Add block size</button>
     <div id="blockTotal" style="margin-top:8px;font-size:14px;color:var(--muted)"></div>
+    <div id="f_costPreview" class="note-banner" style="display:none;margin-top:14px"></div>
     <label>Notes</label><textarea id="f_notes" rows="3" placeholder="Tech, lot details, anything…"></textarea>
     <div style="display:flex;gap:10px;margin-top:20px">
       <button class="btn btn-primary" id="f_save" style="flex:1;justify-content:center" onclick="saveBatch()">Save batch</button>
@@ -1237,7 +1267,7 @@ const STATES = {
 const STATE_ORDER = ["incubating","fruiting","complete","packed","contaminated","failed","culled"];
 
 let batches=[], movements=[], harvests=[], costs=[], batchNotes=[];
-let rooms=[], zones=[], bays=[], placements=[], strains=[];
+let rooms=[], zones=[], bays=[], placements=[], strains=[], grains=[], spawnUnits=[];
 /* Batch IDs & Block IDs (2026-10). The database assigns them (see the
    triggers at the end of schema.sql) - never this page - so two people
    creating batches at once can't collide:
@@ -1413,6 +1443,7 @@ function setSync(state,text){
 }
 
 function batchCounts(b){
+  if(isSpawn(b)){ const t=spawnTally(b); return {incubating:t.incubating+t.ready,fruiting:0,complete:t.used+t.sold,packed:0,contaminated:t.contaminated,failed:t.failed,culled:t.culled}; }
   const c={incubating:b.blocks_total,fruiting:0,complete:0,packed:0,contaminated:0,failed:0,culled:0};
   for(const m of movements){ if(m.batch_id!==b.id) continue;
     if(c[m.from_state]!=null) c[m.from_state]-=m.count;
@@ -1546,7 +1577,7 @@ async function applyHarvestSuggestion(species, lo, hi){
   if(!confirm(`Update your "days to harvest" default for ${species} to ${lo}\u2013${hi} days, based on your real harvest data?`)) return;
   const {error} = await db.from("mn_yield_defaults").update({days_to_harvest_low:lo, days_to_harvest_high:hi, updated_at:new Date().toISOString()}).eq("species",species);
   if(error){ alert("Couldn't update — "+error.message); return; }
-  await loadAll();
+  await refreshTables(["mn_yield_defaults"]);
 }
 
 /* ================= YIELD DEFAULTS PANEL =================
@@ -1740,12 +1771,22 @@ function dryKgForLine(l){
 }
 function dryKg(b){ const ls=blockLines(b); return ls ? ls.reduce((s,l)=>s+(Number(l.count)||0)*dryKgForLine(l),0) : null; }
 /* cost: substrate is dollars per kg DRY × actual dry kg; spawn/bag/other are per block */
+// A batch inoculated from one of our own spawn bags carries that bag's cost
+// (spread over its blocks) instead of the species' flat spawn $/block.
+function blockExtrasFor(b){
+  const seed = b?.source_batch_id ? batches.find(x=>x.id===b.source_batch_id) : null;
+  const bag = seed ? spawnBagCost(seed) : null;
+  if(bag==null) return perBlockExtras(b.species);
+  const c=costRow(b.species);
+  return Number(c?.bag_cost||0)+Number(c?.other_cost||0) + bag/Math.max(1,totalBlocks(b));
+}
 function perBlockExtras(species){ const c=costRow(species); if(!c) return 0; return Number(c.spawn_cost||0)+Number(c.bag_cost||0)+Number(c.other_cost||0); }
 function subPerKg(species){ const c=costRow(species); return c?Number(c.substrate_cost||0):0; }
 function batchCost(b){
+  if(isSpawn(b)){ const bag=spawnBagCost(b); return bag==null?null:{cost:bag*totalBlocks(b), hasWeight:false, kg:null, perBag:bag}; }
   const c=costRow(b.species); if(!c) return null;
   const blocks=totalBlocks(b), kg=dryKg(b);
-  const extras=perBlockExtras(b.species)*blocks;
+  const extras=blockExtrasFor(b)*blocks;
   const sub=(kg!=null)?subPerKg(b.species)*kg:0;
   return {cost:extras+sub, hasWeight:kg!=null, kg};
 }
@@ -1800,7 +1841,7 @@ function resolvedSubKg(b){
 function resolvedBatchCost(b){
   const c=costRow(b.species); if(!c) return null;
   const blocks=resolvedBlockCount(b), kg=resolvedSubKg(b);
-  const extras=perBlockExtras(b.species)*blocks;
+  const extras=blockExtrasFor(b)*blocks;
   const sub=(kg!=null)?subPerKg(b.species)*kg:0;
   return {cost:extras+sub, hasWeight:kg!=null, kg};
 }
@@ -1818,62 +1859,128 @@ function resolvedPackedCost(b){
   const c=costRow(b.species); if(!c) return null;
   let blocks=0, kg=0;
   for(const {kg:sizeKg,count} of sizesInState(b,"packed")){ blocks+=count; kg+=count*dryKgForLine({kg:sizeKg}); }
-  const extras=perBlockExtras(b.species)*blocks;
+  const extras=blockExtrasFor(b)*blocks;
   const sub=subPerKg(b.species)*kg;
   return {cost:extras+sub, blocks, hasWeight:blockLines(b)!=null};
 }
 
 /* ================= DATA ================= */
-function cache(){ try{ localStorage.setItem("mn_cache", JSON.stringify({batches,movements,harvests,costs,rooms,zones,bays,placements,yieldDefaults,batchNotes,strains})); }catch(e){} }
-function loadCache(){ try{ const d=JSON.parse(localStorage.getItem("mn_cache")); if(d){batches=d.batches||[];movements=d.movements||[];harvests=d.harvests||[];costs=d.costs||[];rooms=d.rooms||[];zones=d.zones||[];bays=d.bays||[];placements=d.placements||[];yieldDefaults=d.yieldDefaults||[];batchNotes=d.batchNotes||[];strains=d.strains||[];} }catch(e){} }
-
-async function loadAll(){
+/* Sync layer (2026-10). Three things keep this working as data grows:
+   1. Every table is read in pages of 1000 rows. Supabase never returns more
+      than 1000 rows per request and doesn't flag a cut-short result, so a
+      single select("*") would silently drop rows once a table passed 1000.
+   2. After a save only the table(s) that save touched are re-read (see
+      write()/tablesForWrite), instead of every table - most of the monthly
+      download allowance used to go on those full reloads.
+   3. The offline copy lives in IndexedDB (no ~5 MB localStorage ceiling).
+   Plus: shelf history (removed placements) of archived batches is only
+   fetched when something needs it - an archived batch's page or Analytics
+   - since it's the biggest table and nothing else reads it. */
+const PAGE=1000;
+async function fetchAll(build, orderCol="id"){
+  let out=[];
+  for(let from=0;;from+=PAGE){
+    const {data,error}=await build().order(orderCol).range(from,from+PAGE-1);
+    if(error) return {data:null,error};
+    out=out.concat(data||[]);
+    if(!data || data.length<PAGE) return {data:out,error:null};
+  }
+}
+const stripEmbed = rows => rows.map(r=>{ const {mn_batches:_x, ...rest}=r; return rest; });
+let archivedPlacementsLoaded=false, freshLoaded=false, lastFullLoad=0;
+async function fetchPlacements(){
+  // placements of batches that aren't archived, plus any still-active ones
+  const q=archived=>()=>db.from("mn_placements").select("*, mn_batches!inner(archived)").eq("mn_batches.archived",archived);
+  const act=await fetchAll(q(false));
+  if(act.error) return fetchAll(()=>db.from("mn_placements").select("*")); // older database: just read it all
+  const arch = archivedPlacementsLoaded ? await fetchAll(q(true)) : await fetchAll(()=>q(true)().is("removed_date",null));
+  if(arch.error) return arch;
+  return {data:stripEmbed(act.data.concat(arch.data)), error:null};
+}
+const bySort = rows => rows.sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+// table -> how to read it, where it goes. core tables failing = offline.
+const TABLES={
+  mn_batches:     {core:true, fetch:()=>fetchAll(()=>db.from("mn_batches").select("*")), set:d=>{ batches=d.sort((a,b)=>b.batch_no-a.batch_no); for(const k in unitsCache) delete unitsCache[k]; }},
+  mn_movements:   {core:true, fetch:()=>fetchAll(()=>db.from("mn_movements").select("*")), set:d=>movements=d},
+  mn_harvests:    {core:true, fetch:()=>fetchAll(()=>db.from("mn_harvests").select("*")), set:d=>harvests=d},
+  mn_costs:       {core:true, fetch:()=>fetchAll(()=>db.from("mn_costs").select("*")), set:d=>costs=d},
+  mn_rooms:       {fetch:()=>fetchAll(()=>db.from("mn_rooms").select("*")), set:d=>rooms=bySort(d), warn:"mn_rooms table not found yet — run the Room migration SQL."},
+  mn_zones:       {fetch:()=>fetchAll(()=>db.from("mn_zones").select("*")), set:d=>zones=bySort(d), warn:"Room tables not found yet — run setup_room.sql."},
+  mn_bays:        {fetch:()=>fetchAll(()=>db.from("mn_bays").select("*")), set:d=>bays=bySort(d)},
+  mn_placements:  {fetch:fetchPlacements, set:d=>placements=d},
+  mn_yield_defaults:{fetch:()=>fetchAll(()=>db.from("mn_yield_defaults").select("*"),"species"), set:d=>yieldDefaults=d, warn:"Yield defaults table not readable yet — harvest ETA badges will be hidden."},
+  mn_batch_notes: {fetch:()=>fetchAll(()=>db.from("mn_batch_notes").select("*")), set:d=>batchNotes=d, warn:"mn_batch_notes table not found yet — growth/observation notes will be hidden."},
+  mn_strains:     {fetch:()=>fetchAll(()=>db.from("mn_strains").select("*")), set:d=>strains=d.sort((a,b)=>a.code.localeCompare(b.code)), warn:"mn_strains table not found yet — re-run schema.sql for Batch IDs and strain codes."},
+  mn_grains:      {fetch:()=>fetchAll(()=>db.from("mn_grains").select("*")), set:d=>grains=d.sort((a,b)=>a.name.localeCompare(b.name)), warn:"mn_grains table not found yet — re-run schema.sql for spawn costs."},
+  // every bag of the spawn batches still in play (the spawn pipeline shows each one)
+  mn_units:       {fetch:()=>fetchAll(()=>db.from("mn_units").select("*, mn_batches!inner(kind,archived)").eq("mn_batches.kind","spawn").eq("mn_batches.archived",false)), set:d=>{ spawnUnits=stripEmbed(d); for(const k in unitsCache) delete unitsCache[k]; }, warn:"Spawn bags not readable yet — re-run schema.sql."},
+};
+const ALL_TABLES=Object.keys(TABLES);
+async function refreshTables(names){
+  names=[...new Set(names)].filter(n=>TABLES[n]);
   setSync("","Syncing…");
   try{
-    const [b,m,h,c,rm,z,ba,pl,yd,bn,st] = await Promise.all([
-      db.from("mn_batches").select("*").order("batch_no",{ascending:false}),
-      db.from("mn_movements").select("*"),
-      db.from("mn_harvests").select("*"),
-      db.from("mn_costs").select("*"),
-      db.from("mn_rooms").select("*").order("sort_order"),
-      db.from("mn_zones").select("*").order("sort_order"),
-      db.from("mn_bays").select("*").order("sort_order"),
-      db.from("mn_placements").select("*"),
-      db.from("mn_yield_defaults").select("*"),
-      db.from("mn_batch_notes").select("*"),
-      db.from("mn_strains").select("*").order("code")
-    ]);
-    if(b.error||m.error||h.error||c.error) throw (b.error||m.error||h.error||c.error);
-    batches=b.data; movements=m.data; harvests=h.data; costs=c.data;
-    // mn_rooms (2026-09-04) - the Room > Zone > Bay hierarchy Adam actually
-    // wants (FC1/FC2 etc, each with its own walls/sections/bays). Same
-    // graceful-degradation pattern as mn_zones below: falls back to []
-    // rather than breaking the whole sync if the migration (new mn_rooms
-    // table + mn_zones.room_id column) hasn't been run yet.
-    rooms=rm.error?[]:rm.data;
-    zones=z.error?[]:z.data; bays=ba.error?[]:ba.data; placements=pl.error?[]:pl.data;
-    if(rm.error) console.warn("mn_rooms table not found yet — run the Room migration SQL.",rm.error);
-    if(z.error) console.warn("Room tables not found yet — run setup_room.sql.",z.error);
-    yieldDefaults = yd.error ? [] : yd.data;
-    if(yd.error) console.warn("Yield defaults table not readable yet — harvest ETA badges will be hidden.",yd.error);
-    batchNotes = bn.error ? [] : bn.data;
-    if(bn.error) console.warn("mn_batch_notes table not found yet — growth/observation notes will be hidden.",bn.error);
-    strains = st.error ? [] : st.data;
-    if(st.error) console.warn("mn_strains table not found yet — re-run schema.sql for Batch IDs and strain codes.",st.error);
-    for(const k in unitsCache) delete unitsCache[k];
+    const res=await Promise.all(names.map(n=>TABLES[n].fetch()));
+    for(let i=0;i<names.length;i++){
+      const t=TABLES[names[i]], r=res[i];
+      if(r.error){ if(t.core) throw r.error; console.warn(t.warn||("Couldn't read "+names[i]), r.error); t.set([]); }
+      else t.set(r.data);
+    }
+    freshLoaded=true;
     cache(); setSync("ok","Synced");
   }catch(e){
-    console.error(e); loadCache();
+    console.error(e);
+    if(!freshLoaded) await loadCache();
     setSync("bad","Offline — cached data");
   }
   renderAll();
 }
-
-async function write(action, errMsg){
+async function loadAll(){ lastFullLoad=Date.now(); return refreshTables(ALL_TABLES); }
+// Which tables a save touched, so only those are re-read. Deletes cascade
+// in the database, so they pull in the child tables too.
+function tablesForWrite(action){
+  let t=null, m="";
+  try{ t=action?.url?.pathname?.split("/").pop(); m=String(action?.method||"").toUpperCase(); }catch(e){}
+  if(!t || !TABLES[t]) return ALL_TABLES;
+  const del = m==="DELETE";
+  switch(t){
+    case "mn_batches": return ["mn_batches","mn_units"].concat(del?["mn_movements","mn_harvests","mn_placements","mn_batch_notes"]:[]);
+    case "mn_strains": return ["mn_strains","mn_batches"];
+    case "mn_rooms": case "mn_zones": case "mn_bays": return del?["mn_rooms","mn_zones","mn_bays","mn_placements"]:[t];
+    default: return [t];
+  }
+}
+async function write(action, errMsg, tables){
   setSync("","Saving…");
   const {error} = await action;
   if(error){ console.error(error); setSync("bad","Save failed"); alert(errMsg+"\n\n"+error.message); return false; }
-  await loadAll(); return true;
+  await refreshTables(tables||tablesForWrite(action)); return true;
+}
+// Archived batches' shelf history, fetched the first time it's needed.
+async function ensureArchivedPlacements(){
+  if(archivedPlacementsLoaded) return;
+  archivedPlacementsLoaded=true;
+  await refreshTables(["mn_placements"]);
+}
+
+/* Offline copy in IndexedDB (falls back to localStorage if unavailable). */
+const idb={
+  open(){ return this.p || (this.p=new Promise((res,rej)=>{ const r=indexedDB.open("batch-tracker",1); r.onupgradeneeded=()=>r.result.createObjectStore("kv"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); })); },
+  async get(k){ const d=await this.open(); return new Promise((res,rej)=>{ const q=d.transaction("kv").objectStore("kv").get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); },
+  async set(k,v){ const d=await this.open(); return new Promise((res,rej)=>{ const t=d.transaction("kv","readwrite"); t.objectStore("kv").put(v,k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); }
+};
+function cacheSnapshot(){ return {batches,movements,harvests,costs,rooms,zones,bays,placements,yieldDefaults,batchNotes,strains,grains,spawnUnits}; }
+function cache(){
+  const snap=cacheSnapshot();
+  idb.set("mn_cache",snap).then(()=>{ try{ localStorage.removeItem("mn_cache"); }catch(e){} })
+    .catch(()=>{ try{ localStorage.setItem("mn_cache", JSON.stringify(snap)); }catch(e){} });
+}
+async function loadCache(){
+  let d=null;
+  try{ d=await idb.get("mn_cache"); }catch(e){}
+  if(!d){ try{ d=JSON.parse(localStorage.getItem("mn_cache")); }catch(e){} }
+  if(!d || freshLoaded) return; // never let a stale copy overwrite fresh data
+  batches=d.batches||[];movements=d.movements||[];harvests=d.harvests||[];costs=d.costs||[];rooms=d.rooms||[];zones=d.zones||[];bays=d.bays||[];placements=d.placements||[];yieldDefaults=d.yieldDefaults||[];batchNotes=d.batchNotes||[];strains=d.strains||[];grains=d.grains||[];spawnUnits=d.spawnUnits||[];
 }
 async function setReadyDate(id){
   const v=$("readyDateInput").value; if(!v) return;
@@ -1898,6 +2005,7 @@ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
   if(v==="incubation"){ setRoomKind("incubation"); v="room"; }
   else if(v==="room") setRoomKind("fruiting");
   if(v==="qr") renderLabels();
+  if(v==="analytics") ensureArchivedPlacements();
   if(v==="room") renderRoom();
   if(v==="roomsetup") renderSetup();
   showView(v);
@@ -2144,10 +2252,14 @@ function countSummary(c,b){
    this (state==="" while a fetch/save is in flight). */
 function isSyncing(){ const el=$("sync"); return !!el && el.className.trim()==="sync"; }
 function renderPipeline(){
+  document.querySelectorAll("#pipeKindSeg button").forEach(x=>x.classList.toggle("active",x.dataset.k===pipelineKind));
+  $("newBatchBtn").textContent = pipelineKind==="spawn" ? "＋ New spawn" : "＋ New batch";
+  if(pipelineKind==="spawn") return renderSpawnPipeline();
+  $("pipelineLegend").innerHTML="";
   const q = ($("search").value||"").toLowerCase();
   const cols = {incubating:[],ready:[],fruiting:[],complete:[],offramp:[]};
   for(const b of batches){
-    if(b.archived) continue;
+    if(b.archived || isSpawn(b)) continue;
     const hay = [b.name,b.species,b.substrate,b.spawn_code,b.method,b.batch_code||"#"+b.batch_no,b.strain_code||""].join(" ").toLowerCase();
     const qid = q && parseIdInput(q);
     if(q && !hay.includes(q) && !(qid && b.batch_code===qid.batchCode)) continue;
@@ -2212,10 +2324,12 @@ function cardHTML(b){
 /* ================= RENDER: BATCH DETAIL ================= */
 function openBatch(id, push=true){
   currentBatchId=id; renderBatch(); showView("batch", push);
+  if(batches.find(x=>x.id===id)?.archived) ensureArchivedPlacements();
 }
 function renderBatch(){
   const b=batches.find(x=>x.id===currentBatchId);
   if(!b){ showView("pipeline",false); return; }
+  if(isSpawn(b)) return renderSpawnBatch(b);
   setTimeout(()=>renderUnitsBox(b),0);
   const c=batchCounts(b), y=batchYield(b);
   const bc=batchCost(b); const cost=bc?bc.cost:null;
@@ -2249,7 +2363,7 @@ function renderBatch(){
       <div class="stat"><div class="n">${skg!=null?(skg%1?skg.toFixed(1):skg)+" kg":"—"}</div><div class="l">Substrate</div></div>
       <div class="stat"><div class="n">${cost!=null?money(cost):"—"}</div><div class="l">Batch cost</div></div>
     </div>
-    ${bc?`<div style="font-size:12.5px;color:var(--muted);margin:-6px 0 14px;padding:0 2px">Breakdown: ${totalBlocks(b)} blocks × $${perBlockExtras(b.species).toFixed(2)} (spawn+bag+other) + ${bc.kg!=null?(bc.kg%1?bc.kg.toFixed(2):bc.kg):"—"}kg dry substrate × $${subPerKg(b.species).toFixed(2)}/kg = <b>${money(bc.cost)}</b></div>`:""}
+    ${bc?`<div style="font-size:12.5px;color:var(--muted);margin:-6px 0 14px;padding:0 2px">Breakdown: ${totalBlocks(b)} blocks × $${blockExtrasFor(b).toFixed(2)} (${b.source_batch_id?"bag+other+share of the spawn bag":"spawn+bag+other"}) + ${bc.kg!=null?(bc.kg%1?bc.kg.toFixed(2):bc.kg):"—"}kg dry substrate × $${subPerKg(b.species).toFixed(2)}/kg = <b>${money(bc.cost)}</b></div>`:""}
 
     <div class="panel">
       <h3>Blocks — ${b.blocks_total} total</h3>
@@ -2278,6 +2392,7 @@ function renderBatch(){
       <h3>Details</h3>
       <div class="info-grid">
         <div><div class="k">Batch ID</div><div class="v mono">${esc(batchIdOf(b))}</div></div>
+        ${b.source_batch_id?(()=>{ const sb=batches.find(x=>x.id===b.source_batch_id); return `<div><div class="k">Spawn bag</div><div class="v"><a href="#" class="mono" onclick="event.preventDefault();openBatch('${b.source_batch_id}')">${esc(b.spawn_code||"?")}</a>${sb?` <span style="color:var(--muted);font-size:13px">G${sb.generation||1} · ${esc(sb.substrate||"")}</span>`:""}</div></div>`; })():""}
         <div><div class="k">Strain</div><div class="v">${(()=>{ const s=strainOf(b); return b.strain_code?`<span class="strain-tag">${esc(b.strain_code)}</span>${s?` ${esc(s.species)}${s.variety?` · ${esc(s.variety)}`:""}${s.supplier?` <span style="color:var(--muted)">(${esc(s.supplier)})</span>`:""}`:""}`:"—"; })()}</div></div>
         <div><div class="k">Species</div><div class="v">${esc(b.species)||"—"}</div></div>
         <div><div class="k">Scientific</div><div class="v">${esc(b.scientific)||"—"}</div></div>
@@ -2322,6 +2437,229 @@ async function renderUnitsBox(b){
       return `<span class="${cls}" title="${esc(u.unit_code)} · ${u.voided_at?"retired":esc(loc(u))}">${esc(u.unit_code.slice(b.batch_code.length+1))}</span>`; }).join("")}</div>`;
 }
 
+/* ================= SPAWN (grain spawn bags, 2026-10) =================
+   A spawn batch is an mn_batches row with kind "spawn"; its bags are
+   mn_units rows (26282-01-07), with the same strain list, IDs, labels and
+   incubation rooms as blocks. No fruiting stage: each bag is incubating ->
+   ready -> used (by the batch it inoculated) or sold, or lost. Unlike
+   blocks, the state is kept per bag (mn_units.state) - the database marks
+   a bag "used" itself when a batch is saved with it as its source (see
+   mn_batch_source_check in schema.sql), so that can't half-happen. */
+const isSpawn = b => b?.kind==="spawn";
+const SPAWN_STATES={
+  incubating:{label:"Incubating"}, ready:{label:"Ready"}, used:{label:"Used"}, sold:{label:"Sold"},
+  contaminated:{label:"Contaminated"}, failed:{label:"Didn't colonise"}, culled:{label:"Culled"}
+};
+const SPAWN_LOSSES=["contaminated","failed","culled"];
+const unitState = u => u?.state || "incubating";
+// bags of a spawn batch (non-archived ones are always loaded; archived ones come from fetchUnits)
+const bagsOf = b => (spawnUnits.some(u=>u.batch_id===b.id) ? spawnUnits.filter(u=>u.batch_id===b.id) : (unitsCache[b.id]||[]))
+  .filter(u=>!u.voided_at).sort((a,x)=>a.unit_no-x.unit_no);
+function spawnTally(b){ const t={}; for(const k in SPAWN_STATES) t[k]=0; for(const u of bagsOf(b)) t[unitState(u)]++; return t; }
+// "should be ready" alert: past the strain's colonisation days with bags still incubating
+function spawnDue(b){
+  const days=Number(strainOf(b)?.spawn_ready_days)||0; if(!days) return null;
+  const age=daysBetween(b.inoc_date,todayISO());
+  return {days, age, due:age>=days, count:age>=days ? bagsOf(b).filter(u=>unitState(u)==="incubating").length : 0};
+}
+// a batch sits in the column of its least advanced bag
+function spawnColumn(b){
+  const t=spawnTally(b);
+  if(t.incubating) return "incubating";
+  if(t.ready) return "ready";
+  if(t.used||t.sold) return "done";
+  return bagsOf(b).length ? "losses" : "incubating";
+}
+const grainFor = name => grains.find(g=>g.name.toLowerCase()===String(name||"").trim().toLowerCase());
+function grainBagCost(name){ const g=grainFor(name); if(!g) return null; return Number(g.cost_per_kg||0)*Number(g.kg_per_bag||0)+Number(g.bag_cost||0)+Number(g.other_cost||0); }
+// one bag of a spawn batch: its own grain cost, plus (G2+) its share of the bag it came from
+function spawnBagCost(b, depth=0){
+  if(!b || depth>30) return null;
+  const own=grainBagCost(b.substrate); if(own==null) return null;
+  const parent=b.source_batch_id ? batches.find(x=>x.id===b.source_batch_id) : null;
+  const share=parent ? (spawnBagCost(parent,depth+1)||0)/Math.max(1,totalBlocks(b)) : 0;
+  return own+share;
+}
+
+let pipelineKind=(()=>{ try{ return localStorage.getItem("mn_pipeKind")==="spawn"?"spawn":"block"; }catch(e){ return "block"; } })();
+function setPipelineKind(k){ pipelineKind=k; try{ localStorage.setItem("mn_pipeKind",k); }catch(e){} renderPipeline(); }
+
+function bagSquaresHTML(b, big, sel){
+  return bagsOf(b).map(u=>{
+    const st=unitState(u), used=st==="used" ? batches.find(x=>x.id===u.used_in_batch_id) : null;
+    const tip=`${u.unit_code} · ${SPAWN_STATES[st]?.label||st}${used?` → ${batchIdOf(used)}`:""}`;
+    const cls=["ub",st,big?"big":"",sel&&sel.has(u.id)?"sel":"",highlightUnitCode===u.unit_code?"hl":""].filter(Boolean).join(" ");
+    return `<span class="${cls}" title="${esc(tip)}"${big&&st!=="used"?` onclick="toggleBag('${u.id}')"`:""}${big&&used?` onclick="openBatch('${used.id}')"`:""}>${fmtSeq(u.unit_no)}</span>`;
+  }).join("");
+}
+function spawnLegendHTML(){
+  const c={incubating:"var(--st-incubating)",ready:"var(--st-ready)",used:"var(--st-complete)",sold:"var(--st-sold)",contaminated:"var(--st-contaminated)",failed:"var(--st-failed)",culled:"var(--st-culled)"};
+  return `<div class="legend-row">${Object.keys(SPAWN_STATES).map(k=>`<span><i style="background:${c[k]}"></i>${SPAWN_STATES[k].label}</span>`).join("")}</div>`;
+}
+function spawnCardHTML(b){
+  const t=spawnTally(b), due=spawnDue(b), bag=spawnBagCost(b);
+  const age=daysBetween(b.inoc_date,todayISO());
+  return `<div class="card" onclick="openBatch('${b.id}')">
+    <h3 style="font-size:15px">${esc(b.name)} ${batchTagHTML(b)} <span class="spawn-tag">SPAWN</span></h3>
+    <div class="species">${esc(b.substrate||"—")} · G${b.generation||1} · ${b.source_batch_id?`from <span class="mono">${esc(b.spawn_code||"?")}</span>`:"from culture"}</div>
+    <div class="ubags">${bagSquaresHTML(b,false)}</div>
+    <div class="stats">
+      ${t.incubating?`<span><b>${age}</b> days</span>`:""}
+      ${t.ready?`<span><b>${t.ready}</b> ready</span>`:""}${t.used?`<span><b>${t.used}</b> used</span>`:""}${t.sold?`<span><b>${t.sold}</b> sold</span>`:""}
+      ${due && t.incubating && !due.due?`<span style="color:var(--muted)">ready ≈ day ${due.days}</span>`:""}
+      ${bag!=null?`<span style="color:var(--muted)">${money(bag)}/bag</span>`:""}
+    </div>
+    ${due?.due && due.count?`<div class="spawn-alert">⏰ ${due.count} bag${due.count===1?"":"s"} should be ready (${due.days} days)</div>`:""}
+  </div>`;
+}
+function renderSpawnPipeline(){
+  const q=($("search").value||"").toLowerCase();
+  const cols={incubating:[],ready:[],done:[],losses:[]};
+  for(const b of batches){
+    if(b.archived || !isSpawn(b)) continue;
+    const hay=[b.name,b.species,b.substrate,b.spawn_code,b.batch_code||"",b.strain_code||"","g"+(b.generation||1)].join(" ").toLowerCase();
+    const qid=q && parseIdInput(q);
+    if(q && !hay.includes(q) && !(qid && b.batch_code===qid.batchCode)) continue;
+    cols[spawnColumn(b)].push(b);
+  }
+  const defs=[["incubating","Incubating","var(--st-incubating)"],["ready","Ready","var(--st-ready)"],["done","Used / sold","var(--st-complete)"],["losses","Losses","var(--st-contaminated)"]];
+  const empty = isSyncing() ? `<div class="empty" style="padding:24px">${pinwheelSpinnerHTML(28)}</div>` : `<div class="empty" style="padding:24px">Nothing here</div>`;
+  $("pipeline").innerHTML=defs.map(([k,label,color])=>`
+    <div class="station" style="border-top:3px solid ${color}">
+      <div class="station-head"><h2>${label}</h2><span class="count">${cols[k].length} batch${cols[k].length===1?"":"es"}</span></div>
+      ${cols[k].map(spawnCardHTML).join("") || empty}
+    </div>`).join("");
+  $("pipelineLegend").innerHTML=spawnLegendHTML();
+}
+
+/* ----- spawn batch page: tap bags, change their state ----- */
+const spawnSel=new Set();
+function toggleBag(id){ if(spawnSel.has(id)) spawnSel.delete(id); else spawnSel.add(id); renderBatch(); }
+async function setSpawnState(state){
+  const b=batches.find(x=>x.id===currentBatchId); if(!b) return;
+  const bags=bagsOf(b).filter(u=>spawnSel.has(u.id) && unitState(u)!=="used");
+  if(!bags.length) return;
+  setSync("","Saving…");
+  const {error}=await db.from("mn_units").update({state, state_date:todayISO()}).in("id",bags.map(u=>u.id));
+  if(error){ setSync("bad","Save failed"); alert("Couldn't update those bags.\n\n"+error.message); return; }
+  // the batch log shows what changed and when
+  await db.from("mn_batch_notes").insert({batch_id:b.id, note_date:todayISO(), note:`${bags.length} bag${bags.length===1?"":"s"} → ${SPAWN_STATES[state].label}: ${bags.map(u=>fmtSeq(u.unit_no)).join(", ")}`});
+  spawnSel.clear();
+  delete unitsCache[b.id];
+  await refreshTables(["mn_units","mn_batch_notes"]);
+}
+async function renderSpawnBatch(b){
+  if(b.archived && !unitsCache[b.id]){ fetchUnits(b.id).then(()=>{ if(currentBatchId===b.id) renderBatch(); }); }
+  for(const id of [...spawnSel]) if(!bagsOf(b).some(u=>u.id===id)) spawnSel.delete(id);
+  const t=spawnTally(b), due=spawnDue(b), bag=spawnBagCost(b), s=strainOf(b);
+  const src=b.source_batch_id ? batches.find(x=>x.id===b.source_batch_id) : null;
+  const lost=SPAWN_LOSSES.reduce((n,k)=>n+t[k],0);
+  const usedBags=bagsOf(b).filter(u=>unitState(u)==="used");
+  const onShelf=placements.filter(p=>p.batch_id===b.id && !p.removed_date);
+  const notes=batchNotes.filter(n=>n.batch_id===b.id).sort((a,x)=>a.note_date===x.note_date?(a.created_at<x.created_at?1:-1):(a.note_date<x.note_date?1:-1));
+  const n=spawnSel.size;
+  $("view-batch").innerHTML=`
+    <div class="detail-head">
+      <button class="btn btn-sm" onclick="showView('pipeline')">← Back</button>
+      <h2>${esc(b.name)} ${batchTagHTML(b)} <span class="spawn-tag">SPAWN</span></h2>
+      <button class="btn btn-sm" onclick="showQR('${b.id}')">QR</button>
+      <button class="btn btn-sm" onclick="printUnitLabels('${b.id}')">🖨 Bag labels</button>
+      <button class="btn btn-sm" onclick="openForm('${b.id}')">Edit</button>
+      <button class="btn btn-sm" onclick="toggleArchive('${b.id}')">${b.archived?"Unarchive":"Archive"}</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteBatch('${b.id}')">Delete</button>
+    </div>
+    <div class="statline">
+      <div class="stat"><div class="n">${daysBetween(b.inoc_date,todayISO())}</div><div class="l">Days since inoc</div></div>
+      <div class="stat"><div class="n">${t.incubating}</div><div class="l">Incubating</div></div>
+      <div class="stat"><div class="n">${t.ready}</div><div class="l">Ready</div></div>
+      <div class="stat"><div class="n">${t.used}</div><div class="l">Used</div></div>
+      <div class="stat"><div class="n">${t.sold}</div><div class="l">Sold</div></div>
+      <div class="stat"><div class="n">${lost}</div><div class="l">Losses</div></div>
+      <div class="stat"><div class="n">${bag!=null?money(bag):"—"}</div><div class="l">Cost per bag</div></div>
+    </div>
+    <div class="panel">
+      <h3>Bags — ${bagsOf(b).length}</h3>
+      <div class="ubags">${bagSquaresHTML(b,true,spawnSel)}</div>
+      ${due?.due && due.count?`<div class="spawn-alert">⏰ ${due.age} days in — check whether ${due.count===1?"this bag has":"these bags have"} colonised (${s?.code} is set to ${due.days} days)</div>`:""}
+      ${!due && t.incubating?`<div style="font-size:13px;color:var(--muted);margin-top:8px">Set "Spawn ready (days)" for ${esc(b.strain_code||"this strain")} under Strains to get a "should be ready" alert.</div>`:""}
+      ${highlightUnitCode && highlightUnitCode.startsWith((b.batch_code||"~")+"-")?`<div class="note-banner" style="margin-top:10px">Scanned bag <b class="mono">${esc(highlightUnitCode)}</b> — ${(()=>{ const u=bagsOf(b).find(x=>x.unit_code===highlightUnitCode); if(!u) return "not in this batch"; const st=unitState(u), ub=st==="used"&&batches.find(x=>x.id===u.used_in_batch_id); return SPAWN_STATES[st].label+(ub?` in ${esc(batchTagText(ub))}`:""); })()}</div>`:""}
+      ${onShelf.length?`<div style="margin-top:12px;font-size:14px"><b>On incubation shelves (${onShelf.length}):</b> <span class="mono" style="color:var(--muted)">${onShelf.map(p=>p.slot_code).sort().join(", ")}</span></div>`:""}
+      ${n?`<div class="spawn-bar"><span><b>${n}</b> bag${n===1?"":"s"} selected</span><span class="spacer"></span>
+        <button class="btn btn-sm" style="background:var(--st-ready);color:#1d3a3a;border:none" onclick="setSpawnState('ready')">✓ Ready</button>
+        <button class="btn btn-sm" style="background:var(--st-sold);color:#2a1f00;border:none" onclick="setSpawnState('sold')">$ Sold</button>
+        <button class="btn btn-sm" style="background:var(--st-contaminated);color:#fff;border:none" onclick="setSpawnState('contaminated')">Contaminated</button>
+        <button class="btn btn-sm" style="background:var(--st-failed);color:#3a2600;border:none" onclick="setSpawnState('failed')">Didn't colonise</button>
+        <button class="btn btn-sm" onclick="setSpawnState('culled')">Culled</button>
+        <button class="btn btn-sm" onclick="setSpawnState('incubating')">↺ Incubating</button>
+        <button class="btn btn-sm" onclick="spawnSel.clear();renderBatch()">Clear</button></div>`
+       :`<div style="font-size:13px;color:var(--muted);margin-top:10px">Tap bags to select them and change their state. "Used" is set by itself when a bag's ID is entered on a new batch.</div>`}
+    </div>
+    <div class="panel">
+      <h3>Traceability</h3>
+      <div style="font-size:14px"><b>Made from:</b> ${src?`<a href="#" onclick="event.preventDefault();openBatch('${src.id}')" class="mono">${esc(b.spawn_code||src.batch_code)}</a> (${esc(batchTagText(src))}, G${src.generation||1})`:`mother culture${b.spawn_code?` <span class="mono">${esc(b.spawn_code)}</span>`:""}`} → this batch is <b>G${b.generation||1}</b></div>
+      <div style="font-size:14px;margin-top:8px"><b>Bags used for:</b> ${usedBags.length?usedBags.map(u=>{ const ub=batches.find(x=>x.id===u.used_in_batch_id); return `<span class="mono">${fmtSeq(u.unit_no)}</span> → ${ub?`<a href="#" onclick="event.preventDefault();openBatch('${ub.id}')">${esc(batchTagText(ub))}</a> ${isSpawn(ub)?`(spawn G${ub.generation||2})`:`(${totalBlocks(ub)} blocks)`}`:"?"}`; }).join(" · "):`<span style="color:var(--muted)">none yet</span>`}</div>
+    </div>
+    <div class="panel">
+      <h3>Details</h3>
+      <div class="info-grid">
+        <div><div class="k">Batch ID</div><div class="v mono">${esc(batchIdOf(b))}</div></div>
+        <div><div class="k">Strain</div><div class="v">${b.strain_code?`<span class="strain-tag">${esc(b.strain_code)}</span> ${s?esc(strainLabel(s)):""}`:"—"}</div></div>
+        <div><div class="k">Scientific</div><div class="v">${esc(b.scientific)||"—"}</div></div>
+        <div><div class="k">Grain</div><div class="v">${esc(b.substrate)||"—"}${b.substrate&&!grainFor(b.substrate)?` <span style="color:var(--muted);font-size:12px">(not in Costs → Spawn)</span>`:""}</div></div>
+        <div><div class="k">Inoculated</div><div class="v">${fmtDate(b.inoc_date)}</div></div>
+        <div><div class="k">Generation</div><div class="v">G${b.generation||1}</div></div>
+      </div>
+      ${b.notes?`<div style="margin-top:12px;font-size:14px;color:var(--muted)">${esc(b.notes)}</div>`:""}
+      <div style="margin-top:12px"><button class="btn btn-sm" onclick="openNoteModal('${b.id}')">Add note</button></div>
+    </div>
+    <div class="panel">
+      <h3>Activity log</h3>
+      <ul class="log">${notes.length?notes.map(x=>`<li><span class="d">${fmtDate(x.note_date)}</span><span>${esc(x.note)}</span><button class="del" onclick="deleteLog('note','${x.id}')">✕</button></li>`).join(""):`<li style="color:var(--muted)">Nothing yet — all ${b.blocks_total} bags incubating since ${fmtDate(b.inoc_date)}.</li>`}</ul>
+    </div>`;
+}
+
+/* ----- Costs → Spawn: cost per bag by grain (mn_grains) ----- */
+let grainDraft=false;
+function grainsPanelHTML(){
+  const used={}; for(const b of batches) if(isSpawn(b)&&b.substrate) used[b.substrate.toLowerCase()]=(used[b.substrate.toLowerCase()]||0)+1;
+  const row=(g,id)=>{ const c=id==="new"?null:grainBagCost(g.name); return `<tr>
+    <td><input id="gr_name_${id}" value="${esc(g.name||"")}" placeholder="e.g. Wheat"></td>
+    <td><input type="number" step="0.01" id="gr_kg_${id}" value="${g.cost_per_kg??""}" placeholder="0"></td>
+    <td><input type="number" step="0.1" id="gr_per_${id}" value="${g.kg_per_bag??""}" placeholder="1.5"></td>
+    <td><input type="number" step="0.01" id="gr_bag_${id}" value="${g.bag_cost??""}" placeholder="0"></td>
+    <td><input type="number" step="0.01" id="gr_oth_${id}" value="${g.other_cost??""}" placeholder="0"></td>
+    <td><b>${c!=null?money(c):"—"}</b></td>
+    <td><input type="number" step="0.5" id="gr_sale_${id}" value="${g.sale_price_bag??""}" placeholder="—"></td>
+    <td style="text-align:center"><input type="checkbox" id="gr_act_${id}" ${g.active!==false?"checked":""} style="width:auto"></td>
+    <td style="text-align:center;color:var(--muted);font-size:13px">${id==="new"?"":(used[(g.name||"").toLowerCase()]||0)}</td>
+    <td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="saveGrain('${id}')">Save</button> ${id==="new"?`<button class="btn btn-sm" onclick="grainDraft=false;renderCosts()">✕</button>`:`<button class="btn btn-sm btn-danger" onclick="deleteGrain('${id}')">&times;</button>`}</td>
+  </tr>`; };
+  return `<div class="panel" style="margin-top:14px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><h3 style="margin:0">Spawn — cost per bag, by grain</h3><span class="spacer" style="flex:1"></span><button class="btn btn-sm" onclick="grainDraft=true;renderCosts()">＋ Add grain</button></div>
+    <div class="tablewrap"><table style="min-width:860px">
+      <tr><th>Grain</th><th>Grain $/kg</th><th>Kg per bag</th><th>Bag $</th><th>Other $ (sterilising, power…)</th><th>G1 bag cost</th><th>Sale $/bag</th><th>Active</th><th>Spawn batches</th><th></th></tr>
+      ${grainDraft?row({active:true},"new"):""}${grains.map(g=>row(g,g.id)).join("") || (grainDraft?"":`<tr><td colspan="10" style="color:var(--muted)">No grains yet — add the grains you make spawn with.</td></tr>`)}
+    </table></div>
+    <div style="font-size:12.5px;color:var(--muted);margin-top:8px">A bag made from another bag (G2+) costs its own grain bag cost plus its share of the bag it came from. Blocks inoculated from one of your bags carry that bag's cost instead of the species' "Spawn $/block". The "should be ready" alert uses each strain's "Spawn ready (days)" under Settings → Strains.</div>
+  </div>`;
+}
+async function saveGrain(id){
+  const name=$("gr_name_"+id).value.trim();
+  if(!name){ alert("Give the grain a name, e.g. Wheat."); return; }
+  const num=k=>{ const v=parseFloat($(k+id).value); return isNaN(v)?0:v; };
+  const sale=parseFloat($("gr_sale_"+id).value);
+  const rec={name, cost_per_kg:num("gr_kg_"), kg_per_bag:num("gr_per_")||1, bag_cost:num("gr_bag_"), other_cost:num("gr_oth_"), sale_price_bag:isNaN(sale)?null:sale, active:$("gr_act_"+id).checked, updated_at:new Date().toISOString()};
+  const ok = id==="new" ? await write(db.from("mn_grains").insert(rec),"Couldn't add grain (is that name already used?)")
+                        : await write(db.from("mn_grains").update(rec).eq("id",id),"Couldn't save grain");
+  if(ok){ if(id==="new") grainDraft=false; renderCosts(); }
+}
+async function deleteGrain(id){
+  const g=grains.find(x=>x.id===id); if(!g) return;
+  if(batches.some(b=>isSpawn(b)&&(b.substrate||"").toLowerCase()===g.name.toLowerCase())){ alert(`${g.name} is used by spawn batches - untick Active instead.`); return; }
+  if(!confirm(`Delete ${g.name}?`)) return;
+  if(await write(db.from("mn_grains").delete().eq("id",id),"Couldn't delete grain")) renderCosts();
+}
+
 /* ================= STRAINS (mn_strains, "ID Cepa") ================= */
 let strainsReturnView="pipeline", strainDraft=false;
 function openStrains(){
@@ -2354,6 +2692,7 @@ function renderStrains(){
     <td><input id="st_species_${id}" value="${esc(s.species||"")}" placeholder="Pleurotus ostreatus"></td>
     <td><input id="st_variety_${id}" value="${esc(s.variety||"")}"></td>
     <td><input id="st_supplier_${id}" value="${esc(s.supplier||"")}"></td>
+    <td><input type="number" min="1" id="st_ready_${id}" value="${s.spawn_ready_days??""}" placeholder="e.g. 14" style="width:80px"></td>
     <td style="text-align:center"><input type="checkbox" id="st_active_${id}" ${s.active!==false?"checked":""} style="width:auto"></td>
     <td style="color:var(--muted);font-size:13px;text-align:center">${id==="new"?"":(used[s.code]||0)}</td>
     <td style="white-space:nowrap"><button class="btn btn-sm" onclick="saveStrain('${id}')">Save</button>
@@ -2363,14 +2702,16 @@ function renderStrains(){
     wrap.innerHTML=`<div class="empty">No strains yet. Add one, or re-run <span class="mono">schema.sql</span> in Supabase — it creates the <span class="mono">mn_strains</span> table with your starting list.</div>`;
     return;
   }
-  wrap.innerHTML=`<table class="tbl" style="width:100%;min-width:720px">
-    <thead><tr><th>ID Cepa</th><th>Species</th><th>Variety</th><th>Supplier</th><th>Active</th><th>Batches</th><th></th></tr></thead>
+  wrap.innerHTML=`<table class="tbl" style="width:100%;min-width:820px">
+    <thead><tr><th>ID Cepa</th><th>Species</th><th>Variety</th><th>Supplier</th><th>Spawn ready (days)</th><th>Active</th><th>Batches</th><th></th></tr></thead>
     <tbody>${strainDraft?row({active:true},"new"):""}${rows.map(s=>row(s,s.id)).join("")}</tbody></table>`;
 }
 async function saveStrain(id){
   const code=$("st_code_"+id).value.trim().toUpperCase();
   const rec={code, species:$("st_species_"+id).value.trim(), variety:$("st_variety_"+id).value.trim()||null,
     supplier:$("st_supplier_"+id).value.trim()||null, active:$("st_active_"+id).checked, updated_at:new Date().toISOString()};
+  const rd=parseInt($("st_ready_"+id).value,10);
+  if(rd>0 || strains.some(x=>"spawn_ready_days" in x)) rec.spawn_ready_days = rd>0 ? rd : null;
   if(!/^[A-Z0-9]{2,8}$/.test(code)){ alert("ID Cepa must be 2–8 letters/digits, e.g. BOCF."); return; }
   if(!rec.species){ alert("Species is required."); return; }
   if(id==="new"){
@@ -2397,10 +2738,27 @@ async function deleteStrain(id){
 
 /* ================= FORM ================= */
 let blockLineState=[];
-function openForm(id){
+let formKind="block", formOrigin="culture", formSource=null;
+function openForm(id, kind){
   editingId=id||null;
-  $("formTitle").textContent = id?"Edit batch":"New batch";
   const b = id ? batches.find(x=>x.id===id) : null;
+  formKind = b ? (b.kind||"block") : (kind==="spawn"?"spawn":"block");
+  const sp = formKind==="spawn";
+  $("formTitle").textContent = (id?"Edit ":"New ")+(sp?"spawn batch":"batch");
+  // spawn: "made from" a culture or another bag; blocks: optional bag used
+  formSource=null;
+  formOrigin = b?.source_unit_id ? "bag" : "culture";
+  $("f_originRow").style.display = sp ? "" : "none";
+  $("f_srcLabel").textContent = sp ? "Spawn bag it was made from" : "Spawn bag used (optional)";
+  $("f_src").value = b?.source_unit_id ? (b.spawn_code||"") : "";
+  $("f_srcInfo").innerHTML = sp ? "" : "Scan or type one of your own spawn bags. Bought spawn? Leave this empty and type its code under Spawn code.";
+  $("f_subLabel").textContent = sp ? "Grain *" : "Substrate";
+  $("f_substrate").setAttribute("list", sp ? "grainList" : "subList");
+  $("f_substrate").placeholder = sp ? "e.g. Wheat" : "e.g. Master's mix";
+  $("grainList").innerHTML = grains.filter(g=>g.active!==false).map(g=>`<option value="${esc(g.name)}">`).join("");
+  $("f_methodWrap").style.display = sp ? "none" : "";
+  $("f_blocksLabel").textContent = sp ? "Bags *" : "Blocks *";
+  setFormOrigin(formOrigin, true);
   $("f_id").value=b?.id||"";
   $("f_date").value=b?.inoc_date||todayISO();
   $("f_strain").innerHTML=strainOptionsHTML(b?.strain_code);
@@ -2419,8 +2777,10 @@ function openForm(id){
   // seed block lines
   if(b && blockLines(b)) blockLineState = blockLines(b).map(l=>({count:l.count,kg:l.kg}));
   else if(b && b.blocks_total) blockLineState=[{count:b.blocks_total,kg:""}];
-  else blockLineState=[{count:"",kg:4.5}];
+  else blockLineState=[{count:"",kg:sp?(Number(grainFor(b?.substrate)?.kg_per_bag)||1.5):4.5}];
   renderBlockLines();
+  if(b?.source_unit_id) resolveFormSource();
+  updateSpawnCostPreview();
   // canonical species list with botanicals — shown as suggestions in the dropdown
   const KNOWN_SPECIES = [
     {common:"Snow White Oyster",    sci:"Pleurotus ostreatus"},
@@ -2458,7 +2818,7 @@ function openForm(id){
    date is corrected (labels may already be printed with it). */
 function setFormLocked(locked){
   const f=$("view-form");
-  f.querySelectorAll("input:not([type=hidden]),select,textarea,#blockLines button,#view-form .formwrap > .btn").forEach(el=>el.disabled=locked);
+  f.querySelectorAll("input:not([type=hidden]),select,textarea,#blockLines button,#view-form .formwrap > .btn,#f_originSeg button,#f_srcRow button").forEach(el=>el.disabled=locked);
   f.classList.toggle("form-locked",locked);
   $("f_save").style.display=locked?"none":"";
   $("f_lockNote").innerHTML = !editingId ? "" : locked
@@ -2468,6 +2828,7 @@ function setFormLocked(locked){
 function unlockBatchForm(){
   if(!confirm("Correct this batch's details? Only do this to fix a mistake - the Batch ID and any printed labels stay the same.")) return;
   setFormLocked(false);
+  applySourceLock();
 }
 function updateCodePreview(){
   const b=editingId?batches.find(x=>x.id===editingId):null;
@@ -2478,6 +2839,75 @@ function updateCodePreview(){
   const prefix=String(dt.getFullYear()).slice(2)+String(doy).padStart(3,"0");
   const next=batches.filter(x=>x.inoc_date===d && x.batch_seq).reduce((m,x)=>Math.max(m,x.batch_seq),0)+1;
   $("f_code").innerHTML=`<span style="color:var(--muted)">${prefix}-${fmtSeq(next)} <span style="font-weight:400;font-size:12px">(assigned when saved)</span></span>`;
+}
+function setFormOrigin(o, quiet){
+  formOrigin=o;
+  const sp=formKind==="spawn";
+  document.querySelectorAll("#f_originSeg button").forEach(x=>x.classList.toggle("active",x.dataset.o===o));
+  $("f_srcRow").style.display = (!sp || o==="bag") ? "" : "none";
+  $("f_spawnCodeRow").style.display = (sp && o==="bag") ? "none" : "";
+  $("f_spawnLabel").textContent = sp ? "Culture reference (optional)" : "Spawn code";
+  if(sp && o==="culture" && !quiet){ $("f_src").value=""; formSource=null; applySourceLock(); }
+  updateSpawnCostPreview();
+}
+// Looks the typed/scanned bag up and checks it can be used. The database
+// checks again on save (mn_batch_source_check), so this is just for a
+// clear message up front.
+async function resolveFormSource(){
+  const v=$("f_src").value.trim(), info=$("f_srcInfo");
+  formSource=null;
+  if(!v){ info.innerHTML = formKind==="spawn" ? "" : "Scan or type one of your own spawn bags. Bought spawn? Leave this empty and type its code under Spawn code."; applySourceLock(); return; }
+  const bad=t=>{ info.innerHTML=`<span style="color:var(--danger);font-weight:600">${t}</span>`; applySourceLock(); };
+  const id=parseIdInput(v);
+  if(!id?.unitCode) return bad("That isn't a bag ID (e.g. 26275-01-03).");
+  const sb=batches.find(x=>x.batch_code===id.batchCode);
+  if(!sb) return bad(`No batch with ID ${id.batchCode}.`);
+  if(!isSpawn(sb)) return bad(`${id.unitCode} is a block, not a spawn bag.`);
+  const {data:u,error}=await db.from("mn_units").select("*").eq("unit_code",id.unitCode).maybeSingle();
+  if(error) return bad("Couldn't look that bag up: "+error.message);
+  if(!u || u.voided_at) return bad(`Bag ${id.unitCode} doesn't exist.`);
+  const st=unitState(u), mine=editingId && u.used_in_batch_id===editingId;
+  if(!mine && (u.used_in_batch_id || !["incubating","ready"].includes(st))) return bad(`Bag ${id.unitCode} isn't available — it's ${SPAWN_STATES[st]?.label.toLowerCase()||st}.`);
+  $("f_src").value=u.unit_code;
+  formSource={unit:u, batch:sb};
+  const s=strainOf(sb);
+  info.innerHTML=`<span style="color:var(--st-fruiting);font-weight:700">✓ ${esc(sb.strain_code||"")} · ${esc(s?strainLabel(s):sb.name)} · ${esc(sb.substrate||"")} · G${sb.generation||1} · ${SPAWN_STATES[st].label.toLowerCase()}</span>${formKind==="spawn"?` — this batch will be <b>G${(sb.generation||1)+1}</b>`:""}${mine?"":" — it'll be marked used when you save"}`;
+  applySourceLock();
+}
+// a batch made from a bag takes the bag's strain (and, for blocks, its ID as spawn code)
+function applySourceLock(){
+  const src=formSource?.batch;
+  const locked=$("view-form").classList.contains("form-locked");
+  if(src){ $("f_strain").value=src.strain_code||""; strainPicked(); }
+  $("f_strain").disabled = locked || !!src;
+  if(formKind!=="spawn"){
+    if(formSource) $("f_spawn").value=formSource.unit.unit_code;
+    $("f_spawn").readOnly=!!formSource;
+  }
+  updateSpawnCostPreview();
+}
+function scanFormSource(){
+  openScanModal(text=>{
+    const id=parseIdInput(text);
+    $("f_src").value = id?.unitCode || text;
+    closeScanModal(); resolveFormSource();
+    return false;
+  }, "Scan the spawn bag", "Point the camera at the spawn bag's label…");
+}
+function updateSpawnCostPreview(){
+  const el=$("f_costPreview"); if(!el) return;
+  const bags=blockLineState.reduce((s,l)=>s+(parseInt(l.count,10)||0),0);
+  if(formKind==="spawn"){
+    const own=grainBagCost($("f_substrate").value);
+    if(own==null){ el.style.display = $("f_substrate").value.trim() ? "" : "none"; el.innerHTML=`No cost set for "${esc($("f_substrate").value.trim())}" yet — add it under Costs → Spawn.`; return; }
+    const parent=formSource?.batch, pc=parent?spawnBagCost(parent):null;
+    const total=own*bags+(pc||0);
+    el.style.display=""; el.innerHTML=`Estimated cost: <b>${bags} bags × ${money(own)}</b>${pc!=null?` <b>+ ${money(pc)}</b> for the bag it's made from`:""} = <b>${money(total)}</b>${bags?` → <b>${money(total/bags)} per bag</b>`:""}.`;
+    return;
+  }
+  const pc=formSource ? spawnBagCost(formSource.batch) : null;
+  if(pc==null){ el.style.display="none"; return; }
+  el.style.display=""; el.innerHTML=`This batch carries the spawn bag's cost: <b>${money(pc)}</b>${bags?` (${money(pc/bags)} per block)`:""}, instead of the species' Spawn $/block.`;
 }
 function strainPicked(){
   const s=strains.find(x=>x.code===$("f_strain").value);
@@ -2499,13 +2929,18 @@ function removeBlockLine(i){ blockLineState.splice(i,1); renderBlockLines(); }
 function updateBlockTotal(){
   const blocks=blockLineState.reduce((s,l)=>s+(parseInt(l.count,10)||0),0);
   const kg=blockLineState.reduce((s,l)=>s+(parseInt(l.count,10)||0)*(parseFloat(l.kg)||0),0);
-  $("blockTotal").innerHTML=`<b>${blocks}</b> block${blocks===1?"":"s"}${kg>0?` · <b>${kg%1?kg.toFixed(1):kg}</b> kg substrate total`:""}`;
+  setTimeout(updateSpawnCostPreview,0);
+  $("blockTotal").innerHTML=`<b>${blocks}</b> ${formKind==="spawn"?"bag":"block"}${blocks===1?"":"s"}${kg>0?` · <b>${kg%1?kg.toFixed(1):kg}</b> kg substrate total`:""}`;
 }
 function cancelForm(){ editingId ? openBatch(editingId) : showView("pipeline"); }
 async function saveBatch(){
   // With a strain list, the batch's name, common name (its variety) and
   // scientific name all come from the chosen strain.
-  const strain=strains.length ? strains.find(x=>x.code===$("f_strain").value) : null;
+  const sp=formKind==="spawn";
+  if($("f_src").value.trim() && !formSource && (!sp || formOrigin==="bag")){ alert("That spawn bag can't be used — check the message under it, or clear the field."); return; }
+  if(sp && formOrigin==="bag" && !formSource){ alert("Scan or type the spawn bag this batch was made from."); return; }
+  if(sp && !$("f_substrate").value.trim()){ alert("Enter the grain, e.g. Wheat."); return; }
+  const strain=strains.length ? strains.find(x=>x.code===(formSource?.batch.strain_code||$("f_strain").value)) : null;
   if(strains.length && !strain){ alert("Choose the batch's Strain ID."); return; }
   const name=strain?strainLabel(strain):$("f_name").value.trim(), species=strain?strainLabel(strain):$("f_species").value.trim();
   const lines=blockLineState.map(l=>({count:parseInt(l.count,10)||0,kg:parseFloat(l.kg)||0})).filter(l=>l.count>0);
@@ -2513,7 +2948,7 @@ async function saveBatch(){
   if(!name||!species){ alert(strain?"That strain has no species or variety - fix it under Strains.":"Batch name and species are required."); return; }
   if(!blocks){ alert("Add at least one block size with a count."); return; }
   const prev=editingId?batches.find(x=>x.id===editingId):null;
-  if(blocks>99 && (!prev || prev.blocks_total<blocks) && (!prev || prev.blocks_total<=99)){ alert("A batch can have up to 99 blocks (Block IDs run 01-99). Split it into two batches."); return; }
+  if(blocks>99 && (!prev || prev.blocks_total<blocks) && (!prev || prev.blocks_total<=99)){ alert(`A batch can have up to 99 ${sp?"bags":"blocks"} (IDs run 01-99). Split it into two batches.`); return; }
   const rec={
     name, species, strain_code:$("f_strain").value||null,
     scientific:(strain?strain.species:$("f_sci").value.trim())||null, substrate:$("f_substrate").value.trim()||null,
@@ -2523,6 +2958,14 @@ async function saveBatch(){
   };
   // a database without the strain column yet can still save batches
   if(!rec.strain_code && !(prev && "strain_code" in prev)) delete rec.strain_code;
+  // spawn / spawn-bag columns only sent when used, so plain block batches
+  // still save on a database that hasn't had the spawn columns added
+  if(sp) rec.kind="spawn";
+  const srcId = (!sp || formOrigin==="bag") ? (formSource?.unit.id||null) : null;
+  if(srcId || (prev && prev.source_unit_id)) rec.source_unit_id=srcId;
+  if(formSource) rec.spawn_code=formSource.unit.unit_code;
+  else if(sp && formOrigin==="bag") rec.spawn_code=null;
+  if(sp){ rec.method=null; }
   if(editingId){
     const b=batches.find(x=>x.id===editingId);
     const moved = b.blocks_total - batchCounts(b).incubating;
@@ -2535,12 +2978,12 @@ async function saveBatch(){
     rec.batch_no=batches.reduce((m,x)=>Math.max(m,x.batch_no),0)+1;
     const {data,error}=await db.from("mn_batches").insert(rec).select().single();
     if(error){ alert("Couldn't create batch.\n\n"+error.message); return; }
-    await loadAll(); openBatch(data.id);
+    await refreshTables(["mn_batches","mn_units"]); openBatch(data.id);
   }
 }
 async function toggleArchive(id){
   const b=batches.find(x=>x.id===id);
-  if(await write(db.from("mn_batches").update({archived:!b.archived}).eq("id",id),"Couldn't archive")) b.archived?openBatch(id):showView("pipeline");
+  if(await write(db.from("mn_batches").update({archived:!b.archived}).eq("id",id),"Couldn't archive",["mn_batches","mn_units","mn_placements"])) b.archived?openBatch(id):showView("pipeline");
 }
 async function deleteBatch(id){
   const b=batches.find(x=>x.id===id);
@@ -2862,9 +3305,12 @@ function roomStats(){
   const dueSecondFlush=active.filter(dueForSecondFlush).length;
   // incubation-only figures: placed blocks whose batch is marked ready to
   // fruit, and incubating blocks not sitting on any incubation shelf yet
-  const ready=active.filter(p=>batches.find(b=>b.id===p.batch_id)?.ready_date).length;
+  const batchOf=p=>batches.find(b=>b.id===p.batch_id);
+  const ready=active.filter(p=>{ const b=batchOf(p); return b && !isSpawn(b) && b.ready_date; }).length;
+  const spawnOn=active.filter(p=>isSpawn(batchOf(p)));
+  const spawnCheck=spawnOn.filter(p=>{ const b=batchOf(p), d=spawnDue(b); if(!d?.due) return false; const u=p.unit_id&&spawnUnits.find(x=>x.id===p.unit_id); return !u || unitState(u)==="incubating"; }).length;
   const unplaced=batches.filter(b=>!b.archived).reduce((s,b)=>s+Math.max(0,batchCounts(b).incubating-activeIncPlacementsOf(b.id).length),0);
-  return {occupied:active.length,totalSlots,yld,avgAge,dueSecondFlush,ready,unplaced};
+  return {occupied:active.length,totalSlots,yld,avgAge,dueSecondFlush,ready,unplaced,spawnBags:spawnOn.length,spawnCheck};
 }
 
 function renderRoom(){
@@ -2895,7 +3341,7 @@ function renderRoom(){
       </label>
     </div>`;
   } else if(roomMode==="place"){
-    const opts=batches.filter(b=>!b.archived && (!inc || batchCounts(b).incubating>0)).sort((a,b)=>b.batch_no-a.batch_no)
+    const opts=batches.filter(b=>!b.archived && (inc ? batchCounts(b).incubating>0 : !isSpawn(b))).sort((a,b)=>b.batch_no-a.batch_no)
       .map(b=>`<option value="${b.id}" ${b.id===placeBatchId?"selected":""}>${esc(batchTagText(b))} ${esc(b.name)} (${esc(b.species)})</option>`).join("");
     pb.innerHTML=`<div class="note-banner" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <div class="seg"><button class="active">By batch</button><button onclick="setPlaceByScan(true)">Scan blocks</button></div>
@@ -2954,7 +3400,9 @@ function renderRoom(){
     <div class="stat"><div class="n">${s.totalSlots?Math.round(s.occupied/s.totalSlots*100):0}%</div><div class="l">Occupancy</div></div>
     <div class="stat"><div class="n">${s.avgAge}</div><div class="l">Avg days on shelf</div></div>
     <div class="stat"><div class="n">${s.ready}</div><div class="l">Ready to fruit</div></div>
-    <div class="stat"><div class="n">${s.unplaced}</div><div class="l">Incubating, not on a shelf</div></div>`;
+    <div class="stat"><div class="n">${s.unplaced}</div><div class="l">Incubating, not on a shelf</div></div>
+    ${s.spawnBags?`<div class="stat"><div class="n">${s.spawnBags}</div><div class="l">Spawn bags on shelves</div></div>
+    <div class="stat"><div class="n"${s.spawnCheck?` style="color:#8A5A00"`:""}>${s.spawnCheck}</div><div class="l">Spawn to check</div></div>`:""}`;
   else $("roomStats").innerHTML=`
     <div class="stat"><div class="n">${s.occupied}/${s.totalSlots}</div><div class="l">Slots filled</div></div>
     <div class="stat"><div class="n">${s.totalSlots?Math.round(s.occupied/s.totalSlots*100):0}%</div><div class="l">Occupancy</div></div>
@@ -3012,12 +3460,15 @@ function bayHTML(bay){
       const y=placedYield(p);
       const hasHarv=y>0;
       const dueFlush=roomKind==="fruiting" && dueForSecondFlush(p);
-      const readyDot=roomKind==="incubation" && !!b?.ready_date;
+      const spawnBag = isSpawn(b) ? (p.unit_id ? spawnUnits.find(u=>u.id===p.unit_id) : null) : null;
+      const sd = isSpawn(b) ? spawnDue(b) : null;
+      const readyDot=roomKind==="incubation" && (isSpawn(b) ? unitState(spawnBag)==="ready" && !!spawnBag : !!b?.ready_date);
+      const seedDue = isSpawn(b) && sd?.due && unitState(spawnBag)==="incubating";
       const sel=removeSel.has(code)?" sel":"";
       const dragAttrs = ra ? ` draggable="true" ondragstart="rearrangeDragStart(event,'${code}')" ondragend="rearrangeDragEnd(event)" ondragover="rearrangeDragOver(event)" ondragenter="rearrangeDragEnter(event)" ondragleave="rearrangeDragLeave(event)" ondrop="rearrangeDrop(event,'${code}')"` : "";
-      const titleSuffix = dueFlush ? " · likely ready for a 2nd flush check" : readyDot ? " · batch ready to fruit" : "";
-      return `<div class="slot full${sel}" id="sl_${code}" style="background:${col};color:${ink}" title="${code} · ${esc(p.unit_code||batchIdOf(b))} · ${esc(b?.name||"")}${titleSuffix}" onclick="slotTap('${bay.id}','${letter}',${n})"${dragAttrs}>
-        ${dueFlush?`<span class="flush-due-dot" title="Likely ready for a 2nd flush check"></span>`:readyDot?`<span class="harv-dot" title="Batch ready to fruit"></span>`:hasHarv?`<span class="harv-dot"></span>`:""}
+      const titleSuffix = dueFlush ? " · likely ready for a 2nd flush check" : isSpawn(b) ? (readyDot?" · spawn bag ready":seedDue?" · spawn should be ready - check it":" · spawn") : readyDot ? " · batch ready to fruit" : "";
+      return `<div class="slot full${sel}${isSpawn(b)?" seed":""}${seedDue?" seed-due":""}" id="sl_${code}" style="background:${col};color:${ink}" title="${code} · ${esc(p.unit_code||batchIdOf(b))} · ${esc(b?.name||"")}${titleSuffix}" onclick="slotTap('${bay.id}','${letter}',${n})"${dragAttrs}>
+        ${dueFlush?`<span class="flush-due-dot" title="Likely ready for a 2nd flush check"></span>`:readyDot?`<span class="harv-dot" title="${isSpawn(b)?"Spawn bag ready":"Batch ready to fruit"}"></span>`:hasHarv?`<span class="harv-dot"></span>`:""}
         <span class="s-no">${esc(batchIdOf(b))}</span>
         <span class="s-sp">${esc(b?.strain_code||b?.species||"")}</span>
         <span class="s-d">${p.unit_code?`#${esc(p.unit_code.slice(-2))} · `:""}${days}d</span>
@@ -3125,6 +3576,8 @@ async function placeScannedUnit(text){
   if(!u){ setScanStatus(`Block ${id.unitCode} doesn't exist.`,"bad"); return true; }
   if(u.voided_at){ setScanStatus(`Block ${id.unitCode} was retired from its batch.`,"bad"); return true; }
   const inc = roomKind==="incubation";
+  if(isSpawn(b) && !inc){ setScanStatus(`${id.unitCode} is a spawn bag — spawn only goes on incubation shelves.`,"bad"); return true; }
+  if(isSpawn(b) && !["incubating","ready"].includes(unitState(u))){ setScanStatus(`Bag ${id.unitCode} is ${SPAWN_STATES[unitState(u)]?.label.toLowerCase()} — it doesn't go back on a shelf.`,"bad"); return true; }
   const cur=placements.find(p=>p.unit_id===u.id && !p.removed_date);
   if(cur && kindOfPlacement(cur)===roomKind){ setScanStatus(`${id.unitCode} is already on ${cur.slot_code}.`,"bad"); return true; }
   if(cur && inc){ setScanStatus(`${id.unitCode} is in fruiting (${cur.slot_code}) — remove it there first.`,"bad"); return true; }
@@ -3152,7 +3605,7 @@ async function placeScannedUnit(text){
       : activeIncPlacementsOf(b.id).filter(p=>!p.unit_id).sort((a,x)=>a.placed_date<x.placed_date?-1:a.placed_date>x.placed_date?1:0)[0];
     if(incP) await db.from("mn_placements").update({removed_date:date, removed_note:"Moved to fruiting"}).eq("id",incP.id);
   }
-  await loadAll();
+  await refreshTables(["mn_placements","mn_movements","mn_units"]);
   setSync("ok","Synced");
   const next=nextEmptySlotAfter(target);
   scanPlaceSlot=next;
@@ -3276,7 +3729,7 @@ async function confirmPlace(){
       if(e3){ console.error(e3); alert("Placed in fruiting, but couldn't take them off the incubation shelves - remove them there by hand.\n\n"+e3.message); }
     }
     pendingPlaceSel.clear();
-    await loadAll();
+    await refreshTables(["mn_placements","mn_movements","mn_units"]);
     setSync("ok","Synced");
     renderRoom();
   }catch(e){ console.error(e); setSync("bad","Save failed"); alert("Couldn't place blocks - nothing was saved, please try again.\n\n"+e.message); }
@@ -3345,6 +3798,17 @@ function openRemoveModal(){
         <label>What happened?</label>
         ${Object.keys(byBatch).map(id=>{
           const b=batches.find(x=>x.id===id);
+          if(isSpawn(b)) return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <span style="flex:1;font-size:13px">${esc(b?.name||"?")} <span class="spawn-tag">SPAWN</span> (${byBatch[id]})</span>
+            <select data-outcome-batch="${id}" style="flex:0 0 160px">
+              <option value="keep">Still incubating</option>
+              <option value="ready">Ready</option>
+              <option value="sold">Sold</option>
+              <option value="contaminated">Contaminated</option>
+              <option value="failed">Didn't colonise</option>
+              <option value="culled">Culled</option>
+            </select>
+          </div>`;
           return `<div style="display:flex;align-items:center;gap:8px;margin-top:6px">
             <span style="flex:1;font-size:13px">${esc(b?.name||"?")} (${byBatch[id]})</span>
             <select data-outcome-batch="${id}" style="flex:0 0 160px">
@@ -3438,9 +3902,21 @@ async function confirmRemove(){
     }
   };
   const isProblemReason=note && PROBLEM_REASON_KEYWORDS.some(k=>note.toLowerCase().includes(k));
+  const spawnUpdates=[];
   for(const [batchId,removedCount] of Object.entries(byBatch)){
     const b=batches.find(x=>x.id===batchId);
     if(!b) continue;
+    if(roomKind==="incubation" && isSpawn(b)){
+      const outcomeState=outcomeByBatch[batchId];
+      if(!outcomeState || outcomeState==="keep") continue;
+      // the scanned bags themselves, then (for bags placed by batch) the
+      // lowest-numbered bags still in play
+      const linked=toRemove.filter(p=>p.batch_id===batchId && p.unit_id).map(p=>p.unit_id);
+      const pool=bagsOf(b).filter(u=>!linked.includes(u.id) && ["incubating","ready"].includes(unitState(u)));
+      const ids=linked.concat(pool.slice(0,Math.max(0,removedCount-linked.length)).map(u=>u.id));
+      if(ids.length) spawnUpdates.push({b, ids, state:outcomeState});
+      continue;
+    }
     if(roomKind==="incubation"){
       const outcomeState=outcomeByBatch[batchId];
       if(!outcomeState || outcomeState==="keep") continue;
@@ -3484,13 +3960,22 @@ async function confirmRemove(){
       // guaranteed these were active (removed_date null) before this
       // action, so reverting is just clearing the two fields back.
       await db.from("mn_placements").update({removed_date:null,removed_note:null}).in("id",ids);
-      await loadAll();
+      await refreshTables(["mn_placements","mn_movements","mn_units"]);
       console.error(movErr);
       setSync("bad","Save failed");
       alert("Couldn't record the outcome movement - the removal was undone, nothing was saved. Please try again.\n\n"+movErr.message);
       return;
     }
-    await loadAll();
+    await refreshTables(["mn_movements","mn_units","mn_batch_notes"]);
+  }
+  if(spawnUpdates.length){
+    for(const {b,ids,state} of spawnUpdates){
+      const {error}=await db.from("mn_units").update({state, state_date:todayISO()}).in("id",ids);
+      if(error){ alert("Took the bags off the shelf, but couldn't update their state - set it on the spawn batch's page.\n\n"+error.message); continue; }
+      const nos=bagsOf(b).filter(u=>ids.includes(u.id)).map(u=>fmtSeq(u.unit_no)).join(", ");
+      await db.from("mn_batch_notes").insert({batch_id:b.id, note_date:todayISO(), note:`${ids.length} bag${ids.length===1?"":"s"} → ${SPAWN_STATES[state].label} on removal from the shelf${note?` (${note})`:""}: ${nos}`});
+    }
+    await refreshTables(["mn_units","mn_batch_notes"]);
   }
   closeModal("removeModal"); removeSel.clear(); renderRoom();
 }
@@ -3617,13 +4102,13 @@ async function rearrangeDrop(e,targetCode){
       if(error) throw error;
       await movePlacementHarvests(fromP, fromCode, targetCode);
     }
-    await loadAll();
+    await refreshTables(["mn_placements","mn_harvests"]);
     setSync("ok","Synced");
     renderRoom();
   }catch(err){
     console.error(err); setSync("bad","Save failed");
     alert("Couldn't move that block — nothing should have changed on the shelf, but it's worth checking Room view to confirm.\n\n"+err.message);
-    await loadAll(); renderRoom(); // resync from the server in case anything partial landed
+    await refreshTables(["mn_placements","mn_harvests"]); renderRoom(); // resync from the server in case anything partial landed
   } finally {
     rearrangeBusy=false;
   }
@@ -3788,7 +4273,7 @@ async function seedIncubationRoom(){
     [r1,r2].forEach((z,zi)=>{ for(let i=0;i<2;i++) baysToAdd.push({zone_id:z.id,bay_no:baseBay+zi*2+i+1,rows:6,slots_per_row:8,sort_order:i}); });
     const {error:eb}=await db.from("mn_bays").insert(baysToAdd);
     if(eb) throw eb;
-    await loadAll(); renderSetup(); renderRoom();
+    await refreshTables(["mn_rooms","mn_zones","mn_bays"]); renderSetup(); renderRoom();
     setSync("ok","Synced");
   }catch(e){ console.error(e); setSync("bad","Build failed"); alert("Couldn't build the incubation room. Make sure you've re-run schema.sql (it adds the mn_rooms.kind column) first.\n\n"+e.message); await loadAll(); }
 }
@@ -3811,7 +4296,7 @@ async function seedRoom(){
     [w1,w2].forEach((z,zi)=>{ for(let i=0;i<3;i++) baysToAdd.push({zone_id:z.id,bay_no:baseBay+zi*3+i+1,rows:9,slots_per_row:6,sort_order:i}); });
     baysToAdd.push({zone_id:c.id,bay_no:baseBay+7,rows:5,slots_per_row:24,slots_per_line:12,sort_order:0});
     await db.from("mn_bays").insert(baysToAdd);
-    await loadAll(); renderSetup(); renderRoom();
+    await refreshTables(["mn_rooms","mn_zones","mn_bays"]); renderSetup(); renderRoom();
     setSync("ok","Synced");
   }catch(e){ console.error(e); setSync("bad","Build failed"); alert("Couldn't build the room. Make sure you've run the Room migration SQL first.\n\n"+e.message); }
 }
@@ -3913,7 +4398,7 @@ async function saveBlockWater(){
 let costSpeciesOrder=[];
 let dragSpecies=null;
 function orderedCostSpecies(){
-  const species=[...new Set([...batches.map(b=>b.species),...costs.map(c=>c.species)].filter(Boolean))];
+  const species=[...new Set([...batches.filter(b=>!isSpawn(b)).map(b=>b.species),...costs.map(c=>c.species)].filter(Boolean))];
   const known=costSpeciesOrder.filter(sp=>species.includes(sp));
   const rest=species.filter(sp=>!known.includes(sp)).sort((a,b)=>a.localeCompare(b));
   return [...known,...rest];
@@ -3981,7 +4466,10 @@ function labelHTML(b, unit){
   const note=($("lb_note")?.value||"").trim();
   const logo = labelCfg.logo ? `<img class="llogo" src="${labelCfg.logo}" alt="" style="max-height:${logoH}px;max-width:${Math.min(90,Math.round(60*labelCfg.logoScale/100))}%">` : "";
   const id = `<div class="lid" style="font-size:${idPx}px"><span class="lcode">${esc(unit?unit.unit_code:batchIdOf(b))}</span>${b.strain_code?`<span class="lst">${esc(b.strain_code)}</span>`:""}</div>`;
-  const details = `${b.spawn_code?`<div class="ln"><span class="mono">${esc(b.spawn_code)}</span></div>`:""}<div class="lnote">${note?esc(note):"&nbsp;"}</div>`;
+  // spawn bags: SPAWN tag + grain and generation in place of the spawn code
+  const detailLine = isSpawn(b) ? `<div class="ln"><span class="lsem">SPAWN</span>${esc(b.substrate||"")} · G${b.generation||1}</div>`
+    : b.spawn_code ? `<div class="ln"><span class="mono">${esc(b.spawn_code)}</span></div>` : "";
+  const details = `${detailLine}<div class="lnote">${note?esc(note):"&nbsp;"}</div>`;
   const qr = `<div class="lq" data-qr="${esc(unit?unitURL(unit.unit_code):batchURL(b))}" data-qrsize="${qrSize}"></div>`;
   if(compact) return `<div class="label compact" style="width:${sz.w}px;height:${sz.h}px">
       ${id}
@@ -4173,6 +4661,7 @@ function renderAnalytics(){
 
   const bySpecies={};
   for(const b of batches){
+    if(isSpawn(b)) continue; // spawn has no yield - it's costed into the blocks it inoculates
     const k=b.species||"(unknown)";
     (bySpecies[k]=bySpecies[k]||[]).push(b);
   }
@@ -4359,7 +4848,7 @@ function blockWaterPanelHTML(){
 function renderCosts(){
   const species=orderedCostSpecies();
   const sizes=Object.keys(BLOCK_WATER_L).map(Number).sort((a,b)=>b-a);
-  if(!species.length){ $("costsWrap").innerHTML=`<div class="empty">Create a batch first — its species will show up here.</div>`+packedPricePanelHTML()+blockWaterPanelHTML(); return; }
+  if(!species.length){ $("costsWrap").innerHTML=`<div class="empty">Create a batch first — its species will show up here.</div>`+grainsPanelHTML()+packedPricePanelHTML()+blockWaterPanelHTML(); return; }
   $("costsWrap").innerHTML=`<div class="tablewrap"><table class="costs-table">
     <tr><th></th><th>Species</th><th>Substrate $/kg</th><th>Spawn $/block</th><th>Bag $/block</th><th>Other $/block</th>${sizes.map(s=>`<th>${s%1?s.toFixed(1):s}kg block</th>`).join("")}<th>Wholesale $/kg</th><th>Retail $/kg</th><th>Kit $/block${infoDot(`This species' own grow-kit price - leave blank to use the farm-wide default set below (currently $${PACKED_PRICE_PER_BLOCK}).`)}</th><th></th></tr>
     ${species.map((sp,i)=>{
@@ -4383,6 +4872,7 @@ function renderCosts(){
       </tr>`;}).join("")}
   </table></div>
   ${infoBannerHTML("costsBottom", `Substrate is entered <b>per kg dry</b> so it scales with block size automatically. Spawn, bag and other (power, labour) are <b>per block</b>. The block columns above show what each configured finished block size costs you — substrate is charged on the <b>dry weight</b> only, with water backed out since well water costs next to nothing. <b>Retail $/kg</b> is a target price for market sales (not yet tied to actual transactions) so you can sanity-check retail markup against wholesale. Drag the &#9776; handle to reorder species — e.g. group cheaper ones together. The order is shared with the Analytics tab.`, "margin-top:12px")}
+  ${grainsPanelHTML()}
   ${packedPricePanelHTML()}
   ${blockWaterPanelHTML()}`;
 }
@@ -4407,7 +4897,7 @@ async function deleteCost(sp){
 function renderArchive(){
   const list=batches.filter(b=>b.archived);
   $("archiveWrap").innerHTML = list.length
-    ? `<div class="card-grid">${list.map(cardHTML).join("")}</div>`
+    ? `<div class="card-grid">${list.map(b=>isSpawn(b)?spawnCardHTML(b):cardHTML(b)).join("")}</div>`
     : `<div class="empty">No archived batches. Archiving keeps a batch's data in Analytics but clears it off the pipeline.</div>`;
 }
 
@@ -4415,8 +4905,8 @@ function renderArchive(){
 function dl(name,text){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type:"text/csv"})); a.download=name; a.click(); }
 function csvCell(v){ v=(v??"").toString(); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 function exportCSV(){
-  const bh=["batch_id","strain_id","name","species","scientific","substrate","method","spawn_code","inoc_date","blocks_total","substrate_kg","block_sizes","incubating","fruiting","complete","contaminated","failed","culled","ready_date","total_yield_g","harvest_count","batch_cost","archived","notes"];
-  const brows=batches.map(b=>{const c=batchCounts(b);const sk=substrateKg(b);const bc=batchCost(b);const bsz=blockLines(b)?blockLines(b).map(l=>`${l.count}x${l.kg}kg`).join(" + "):"";return [b.batch_code||b.batch_no,b.strain_code||"",b.name,b.species,b.scientific,b.substrate,b.method,b.spawn_code,b.inoc_date,totalBlocks(b),sk??"",bsz,c.incubating,c.fruiting,c.complete,c.contaminated,c.failed,c.culled,b.ready_date||"",batchYield(b),batchHarvestCount(b),bc?bc.cost.toFixed(2):"",b.archived,b.notes].map(csvCell).join(",");});
+  const bh=["batch_id","type","generation","made_from","strain_id","name","species","scientific","substrate","method","spawn_code","inoc_date","blocks_total","substrate_kg","block_sizes","incubating","fruiting","complete","contaminated","failed","culled","ready_date","total_yield_g","harvest_count","batch_cost","archived","notes"];
+  const brows=batches.map(b=>{const c=batchCounts(b);const sk=substrateKg(b);const bc=batchCost(b);const bsz=blockLines(b)?blockLines(b).map(l=>`${l.count}x${l.kg}kg`).join(" + "):"";return [b.batch_code||b.batch_no,b.kind||"block",b.generation??"",batches.find(x=>x.id===b.source_batch_id)?.batch_code||"",b.strain_code||"",b.name,b.species,b.scientific,b.substrate,b.method,b.spawn_code,b.inoc_date,totalBlocks(b),sk??"",bsz,c.incubating,c.fruiting,c.complete,c.contaminated,c.failed,c.culled,b.ready_date||"",batchYield(b),batchHarvestCount(b),bc?bc.cost.toFixed(2):"",b.archived,b.notes].map(csvCell).join(",");});
   dl("batches.csv",[bh.join(","),...brows].join("\n"));
   const hh=["batch_id","batch_name","species","harvest_date","weight_g","flush","slot","note"];
   const hrows=harvests.map(h=>{const b=batches.find(x=>x.id===h.batch_id)||{};return [b.batch_code||b.batch_no,b.name,b.species,h.harvest_date,h.weight_g,h.flush,h.slot_code||"",h.note].map(csvCell).join(",");});
@@ -4541,7 +5031,8 @@ db.auth.onAuthStateChange(async (event, session)=>{
     hideLoginScreen();
     if(!appBooted && (event==="SIGNED_IN"||event==="INITIAL_SESSION")){
       appBooted=true;
-      loadCache(); renderAll();
+      loadCache().then(()=>{ if(!freshLoaded) renderAll(); });
+      renderAll();
       const v=$("appVer"); if(v) v.textContent=APP_VERSION;
       loadBranding();
       loadSettings();
@@ -4549,7 +5040,9 @@ db.auth.onAuthStateChange(async (event, session)=>{
     } else if(appBooted && event==="SIGNED_IN"){
       // Supabase re-fires SIGNED_IN when the tab regains focus and revalidates
       // the session — refresh data quietly without resetting the current view.
-      loadAll();
+      // At most every couple of minutes: each full refresh downloads every
+      // table, and switching apps on a phone fires this constantly.
+      if(Date.now()-lastFullLoad>120000) loadAll();
     }
   } else {
     loadPrefs(); loadBranding(); applyAppearance();
